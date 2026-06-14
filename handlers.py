@@ -51,12 +51,12 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
 CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("Insight", callback_data="c:insight"),
-        InlineKeyboardButton("Ideia",   callback_data="c:ideia"),
+        InlineKeyboardButton("Insight",      callback_data="c:insight"),
+        InlineKeyboardButton("Tarefa",       callback_data="c:tarefa"),
     ],
     [
-        InlineKeyboardButton("Tarefa",  callback_data="c:tarefa"),
-        InlineKeyboardButton("Inbox",   callback_data="c:inbox"),
+        InlineKeyboardButton("Compromisso",  callback_data="c:compromisso"),
+        InlineKeyboardButton("Nota",         callback_data="c:nota"),
     ],
 ])
 
@@ -208,18 +208,20 @@ async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYP
     rid = result.data[0]["id"]
     texto = result.data[0]["conteudo"]
 
-    if acao == "inbox":
-        db.table("registros").update({"tipo": "nota", "status": "inbox"}).eq("id", rid).execute()
-        await query.edit_message_text(f"Salvo no inbox:\n\"{texto}\"")
-
-    elif acao == "ideia":
-        db.table("registros").update({"tipo": "ideia", "status": "inbox"}).eq("id", rid).execute()
-        await query.edit_message_text(f"Ideia salva:\n\"{texto}\"")
+    if acao == "nota":
+        db.table("registros").update({"tipo": "nota", "status": "ativo"}).eq("id", rid).execute()
+        await query.edit_message_text(f"Nota salva:\n\"{texto}\"")
 
     elif acao == "tarefa":
         nova_tarefa(texto)
         db.table("registros").delete().eq("id", rid).execute()
         await query.edit_message_text(f"Tarefa criada:\n\"{texto}\"")
+
+    elif acao == "compromisso":
+        set_estado("compromisso_data")
+        await query.edit_message_text(
+            f"Compromisso: \"{texto[:60]}\"\n\nData e hora? (DD/MM HH:MM)\nExemplo: 18/06 15:00"
+        )
 
     elif acao == "insight":
         db.table("registros").update({"tipo": "insight", "status": "pendente"}).eq("id", rid).execute()
@@ -285,6 +287,32 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if estado == "nova_tag":
         set_estado(None)
         await update.message.reply_text(confirmar_tag(texto))
+        return
+
+    if estado == "compromisso_data":
+        partes = texto.strip().split()
+        if len(partes) < 2:
+            await update.message.reply_text("Formato inválido. Use: DD/MM HH:MM\nExemplo: 18/06 15:00")
+            return
+        data_str, hora_str = partes[0], partes[1]
+        result = (
+            get_client()
+            .table("registros")
+            .select("id, conteudo")
+            .eq("status", "classificar")
+            .order("criado_em", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            await update.message.reply_text("Entrada original não encontrada.")
+            set_estado(None)
+            return
+        rid = result.data[0]["id"]
+        titulo = result.data[0]["conteudo"]
+        set_estado(None)
+        get_client().table("registros").delete().eq("id", rid).execute()
+        await update.message.reply_text(adicionar_compromisso(data_str, hora_str, titulo))
         return
 
     if estado == "tarefa":
