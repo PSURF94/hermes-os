@@ -1,0 +1,8 @@
+.env
+auth/token_google.json
+auth/token_microsoft.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/

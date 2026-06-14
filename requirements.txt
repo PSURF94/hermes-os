@@ -1,0 +1,15 @@
+# Fase 1 — Bot Telegram
+python-telegram-bot==21.6
+python-dotenv==1.0.1
+
+# Fase 3 — Google Calendar
+# google-auth==2.35.0
+# google-auth-oauthlib==1.2.1
+# google-api-python-client==2.151.0
+
+# Fase 4 — Microsoft To Do
+# msal==1.31.0
+# requests==2.32.3
+
+# Fase 2 e 5 — Supabase
+# supabase==2.9.0
