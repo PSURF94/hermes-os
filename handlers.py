@@ -14,7 +14,7 @@ from modules.tarefas import lista_tarefas, nova_tarefa, feito
 from services.todoist import ETIQUETAS_VALIDAS
 from modules.projetos import listar_projetos, detalhar_projeto
 from modules.exportar import exportar_projeto
-from modules.briefing import gerar_briefing, ocultar_projeto, mostrar_projeto, listar_ocultos
+from modules.briefing import gerar_briefing
 from modules.insights import get_tags, salvar_pendente, confirmar_tag, listar_insights
 from services.estado import get_estado, set_estado
 from services.supabase_client import get_client
@@ -47,8 +47,6 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
 <b>BRIEFING</b>
 /briefing — agenda + tarefas + projetos num só lugar
-/briefing ocultar <i>[projeto Todoist]</i> — esconder tarefas de um projeto
-/briefing mostrar — listar ocultos | /briefing mostrar <i>[projeto]</i> — reativar
 
 <b>EXPORTAR</b>
 /exportar <i>[projeto]</i> — contexto formatado para colar no Claude
@@ -338,21 +336,7 @@ async def cmd_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if not args:
-        await update.message.reply_text(gerar_briefing())
-    elif args[0] == "ocultar":
-        if len(args) < 2:
-            await update.message.reply_text("Uso: /briefing ocultar [nome do projeto Todoist]")
-            return
-        await update.message.reply_text(ocultar_projeto(" ".join(args[1:])))
-    elif args[0] == "mostrar":
-        if len(args) < 2:
-            await update.message.reply_text(listar_ocultos())
-            return
-        await update.message.reply_text(mostrar_projeto(" ".join(args[1:])))
-    else:
-        await update.message.reply_text("Subcomandos: /briefing ocultar [projeto] | /briefing mostrar [projeto]")
+    await update.message.reply_text(gerar_briefing())
 
 
 async def cmd_exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):

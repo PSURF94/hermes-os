@@ -4,10 +4,11 @@ from zoneinfo import ZoneInfo
 from services.google_calendar import listar_eventos_hoje
 from services.todoist import listar_tarefas, listar_projetos_todoist
 from services.supabase_client import get_client
-from services.estado import get_config, set_config
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+
+PROJETOS_OCULTOS_BRIEFING = {"Getting Started", "Trabalho focado"}
 
 
 def _fmt_hora(evento: dict) -> str:
@@ -17,50 +18,12 @@ def _fmt_hora(evento: dict) -> str:
     return "Dia todo"
 
 
-def _projetos_excluidos() -> list[dict]:
-    return get_config("briefing_excluir_projetos") or []
-
-
-def ocultar_projeto(nome: str) -> str:
+def _ids_excluidos() -> set:
     try:
         projetos = listar_projetos_todoist()
-    except Exception as e:
-        return f"Erro ao buscar projetos Todoist: {e}"
-
-    match = next((p for p in projetos if nome.lower() in p.get("name", "").lower()), None)
-    if not match:
-        nomes = ", ".join(p.get("name", "") for p in projetos)
-        return f'Projeto não encontrado. Disponíveis: {nomes}'
-
-    excluidos = _projetos_excluidos()
-    if any(p["id"] == match["id"] for p in excluidos):
-        return f'"{match["name"]}" já está oculto do briefing.'
-
-    excluidos.append({"id": match["id"], "name": match["name"]})
-    set_config("briefing_excluir_projetos", excluidos)
-    return f'"{match["name"]}" ocultado do briefing.'
-
-
-def mostrar_projeto(nome: str) -> str:
-    excluidos = _projetos_excluidos()
-    match = next((p for p in excluidos if nome.lower() in p.get("name", "").lower()), None)
-    if not match:
-        if not excluidos:
-            return "Nenhum projeto oculto no momento."
-        nomes = ", ".join(p["name"] for p in excluidos)
-        return f'Projeto não encontrado nos ocultos. Ocultos: {nomes}'
-
-    excluidos = [p for p in excluidos if p["id"] != match["id"]]
-    set_config("briefing_excluir_projetos", excluidos)
-    return f'"{match["name"]}" voltará a aparecer no briefing.'
-
-
-def listar_ocultos() -> str:
-    excluidos = _projetos_excluidos()
-    if not excluidos:
-        return "Nenhum projeto oculto no briefing."
-    nomes = "\n".join(f"  • {p['name']}" for p in excluidos)
-    return f"Projetos ocultos do briefing:\n{nomes}"
+        return {p["id"] for p in projetos if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
+    except Exception:
+        return set()
 
 
 def gerar_briefing() -> str:
@@ -87,10 +50,10 @@ def gerar_briefing() -> str:
     # Tarefas
     partes.append("✅ TAREFAS")
     try:
-        ids_excluidos = {p["id"] for p in _projetos_excluidos()}
+        excluidos = _ids_excluidos()
         tarefas = [
             t for t in listar_tarefas()
-            if t.get("project_id") not in ids_excluidos
+            if t.get("project_id") not in excluidos
         ]
         if not tarefas:
             partes.append("  Nenhuma tarefa pendente.")
