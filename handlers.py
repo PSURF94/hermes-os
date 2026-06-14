@@ -1,4 +1,5 @@
 import asyncio
+import re
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -26,8 +27,9 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 /agenda remover <i>[título parcial]</i> — remover compromisso
 
 <b>TAREFAS</b> — Todoist
-/tarefa <i>[texto]</i> — criar tarefa
-/tarefa listar — tarefas pendentes
+/tarefa <i>[texto] [#oper|#adm|#renda|#pessoal]</i> — criar tarefa
+/tarefa listar — todas as tarefas pendentes
+/tarefa listar <i>#etiqueta</i> — filtrar por etiqueta
 /feito <i>[título parcial]</i> — marcar como concluída
 
 <b>PROJETOS</b> — Supabase
@@ -120,9 +122,14 @@ async def cmd_tarefa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
         set_estado("tarefa")
-        await update.message.reply_text("Qual a tarefa?")
+        await update.message.reply_text("Qual a tarefa? Use #oper, #adm, #renda ou #pessoal para categorizar.")
     elif args[0] == "listar":
-        await update.message.reply_text(lista_tarefas())
+        label = None
+        resto = " ".join(args[1:])
+        m = re.search(r"#(\w+)", resto)
+        if m:
+            label = m.group(1).lower()
+        await update.message.reply_text(lista_tarefas(label))
     else:
         await update.message.reply_text(nova_tarefa(" ".join(args)))
 
