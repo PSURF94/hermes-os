@@ -1,3 +1,4 @@
+import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -52,15 +53,15 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
 CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("Insight",      callback_data="c:insight"),
-        InlineKeyboardButton("Tarefa",       callback_data="c:tarefa"),
+        InlineKeyboardButton("💡 Insight",     callback_data="c:insight"),
+        InlineKeyboardButton("✅ Tarefa",       callback_data="c:tarefa"),
     ],
     [
-        InlineKeyboardButton("Compromisso",  callback_data="c:compromisso"),
-        InlineKeyboardButton("Nota",         callback_data="c:nota"),
+        InlineKeyboardButton("📅 Compromisso", callback_data="c:compromisso"),
+        InlineKeyboardButton("📝 Nota",        callback_data="c:nota"),
     ],
     [
-        InlineKeyboardButton("→ Claude",     callback_data="c:claude"),
+        InlineKeyboardButton("🤖 Claude",      callback_data="c:claude"),
     ],
 ])
 
@@ -389,13 +390,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
-    # sem estado: perguntar o que fazer
+    # sem estado: mostrar keyboard imediatamente e salvar em paralelo
     try:
-        registrar(texto, tipo="rascunho", status="classificar")
         preview = texto[:80] + ("..." if len(texto) > 80 else "")
-        await update.message.reply_text(
-            f"\"{preview}\"\n\nO que fazer com isso?",
-            reply_markup=CLASSIFICAR_KEYBOARD,
+        await asyncio.gather(
+            update.message.reply_text(
+                f"\"{preview}\"\n\nO que fazer com isso?",
+                reply_markup=CLASSIFICAR_KEYBOARD,
+            ),
+            asyncio.to_thread(registrar, texto, tipo="rascunho", status="classificar"),
         )
     except Exception as e:
         await update.message.reply_text(f"Erro: {e}")

@@ -1,11 +1,12 @@
 """
 Envia resposta ao Telegram e atualiza status no Supabase.
-Lê a resposta do stdin.
+Lê a resposta do stdin (UTF-8).
 Uso: echo "resposta" | python responder_mensagem.py <id>
      python responder_mensagem.py <id> < _resposta.txt
 """
 import sys
 import os
+import io
 import httpx
 from dotenv import load_dotenv
 load_dotenv()
@@ -17,7 +18,8 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 mid = sys.argv[1]
-resposta = sys.stdin.read().strip()
+# Lê stdin como UTF-8 e remove BOM caso presente
+resposta = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8-sig").read().strip()
 
 if not resposta:
     print("Resposta vazia.")

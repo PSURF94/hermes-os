@@ -21,10 +21,10 @@ def gerar_resenha() -> str:
     dia = DIAS_PT[hoje.weekday()]
     data_fmt = f"{dia}, {hoje.day:02d}/{hoje.month:02d}"
 
-    partes = [f"Bom dia, Paulo. Resenha de {data_fmt}", ""]
+    partes = [f"☀️ Bom dia, Paulo! Resenha de {data_fmt}", ""]
 
     # Agenda
-    partes.append("AGENDA HOJE")
+    partes.append("📅 AGENDA HOJE")
     try:
         eventos = listar_eventos_hoje()
         if not eventos:
@@ -38,7 +38,7 @@ def gerar_resenha() -> str:
     partes.append("")
 
     # Tarefas
-    partes.append("TAREFAS PENDENTES")
+    partes.append("✅ TAREFAS PENDENTES")
     try:
         tarefas = listar_tarefas()
         if not tarefas:
@@ -54,7 +54,7 @@ def gerar_resenha() -> str:
     partes.append("")
 
     # Projetos
-    partes.append("PROJETOS — PRÓXIMA AÇÃO")
+    partes.append("🗂️ PROJETOS — PRÓXIMA AÇÃO")
     try:
         db = get_client()
         result = (
@@ -76,7 +76,7 @@ def gerar_resenha() -> str:
     partes.append("")
 
     # Insights recentes
-    partes.append("INSIGHTS RECENTES")
+    partes.append("💡 INSIGHTS RECENTES")
     try:
         db = get_client()
         result = (
@@ -96,29 +96,6 @@ def gerar_resenha() -> str:
                 texto = r["conteudo"]
                 linha = f"  [{tag}] {texto[:90]}{'...' if len(texto) > 90 else ''}"
                 partes.append(linha)
-    except Exception as e:
-        partes.append(f"  Erro: {e}")
-
-    partes.append("")
-
-    # Inbox
-    partes.append("INBOX")
-    try:
-        db = get_client()
-        result = (
-            db.table("registros")
-            .select("conteudo")
-            .eq("status", "inbox")
-            .order("criado_em", desc=True)
-            .limit(3)
-            .execute()
-        )
-        if not result.data:
-            partes.append("  Limpo.")
-        else:
-            for r in result.data:
-                texto = r["conteudo"]
-                partes.append(f"  • {texto[:80]}{'...' if len(texto) > 80 else ''}")
     except Exception as e:
         partes.append(f"  Erro: {e}")
 

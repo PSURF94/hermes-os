@@ -21,10 +21,10 @@ def gerar_briefing() -> str:
     dia = DIAS_PT[hoje.weekday()]
     data_fmt = f"{dia}, {hoje.day:02d}/{hoje.month:02d}"
 
-    partes = [f"BRIEFING — {data_fmt}", ""]
+    partes = [f"📋 BRIEFING — {data_fmt}", ""]
 
     # Agenda
-    partes.append("AGENDA")
+    partes.append("📅 AGENDA")
     try:
         eventos = listar_eventos_hoje()
         if not eventos:
@@ -38,7 +38,7 @@ def gerar_briefing() -> str:
     partes.append("")
 
     # Tarefas
-    partes.append("TAREFAS")
+    partes.append("✅ TAREFAS")
     try:
         tarefas = listar_tarefas()
         if not tarefas:
@@ -55,7 +55,7 @@ def gerar_briefing() -> str:
     partes.append("")
 
     # Projetos
-    partes.append("PROJETOS")
+    partes.append("🗂️ PROJETOS")
     try:
         db = get_client()
         result = (
@@ -71,29 +71,6 @@ def gerar_briefing() -> str:
             for p in result.data:
                 acao = p.get("proxima_acao") or "—"
                 partes.append(f"  {p['nome']}: {acao}")
-    except Exception as e:
-        partes.append(f"  Erro: {e}")
-
-    partes.append("")
-
-    # Inbox
-    partes.append("INBOX")
-    try:
-        db = get_client()
-        result = (
-            db.table("registros")
-            .select("conteudo")
-            .eq("status", "inbox")
-            .order("criado_em", desc=True)
-            .limit(3)
-            .execute()
-        )
-        if not result.data:
-            partes.append("  Nenhuma nota no inbox.")
-        else:
-            for r in result.data:
-                texto = r["conteudo"]
-                partes.append(f"  • {texto[:80]}{'...' if len(texto) > 80 else ''}")
     except Exception as e:
         partes.append(f"  Erro: {e}")
 
