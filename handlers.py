@@ -13,6 +13,7 @@ from modules.exportar import exportar_projeto
 from modules.briefing import gerar_briefing
 from modules.insights import get_tags, salvar_pendente, confirmar_tag, listar_insights
 from services.estado import get_estado, set_estado
+from services.supabase_client import get_client
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
@@ -46,6 +47,18 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 /exportar <i>[projeto]</i> — contexto formatado para colar no Claude
 
 <i>Texto livre → salvo automaticamente no inbox.</i>"""
+
+
+CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
+    [
+        InlineKeyboardButton("Insight", callback_data="c:insight"),
+        InlineKeyboardButton("Ideia",   callback_data="c:ideia"),
+    ],
+    [
+        InlineKeyboardButton("Tarefa",  callback_data="c:tarefa"),
+        InlineKeyboardButton("Inbox",   callback_data="c:inbox"),
+    ],
+])
 
 
 def _tag_keyboard(tags: list[str]) -> InlineKeyboardMarkup:
@@ -173,6 +186,50 @@ async def callback_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(confirmar_tag(tag))
 
 
+async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    acao = query.data[2:]
+    db = get_client()
+
+    result = (
+        db.table("registros")
+        .select("id, conteudo")
+        .eq("status", "classificar")
+        .order("criado_em", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        await query.edit_message_text("Nenhuma entrada pendente encontrada.")
+        return
+
+    rid = result.data[0]["id"]
+    texto = result.data[0]["conteudo"]
+
+    if acao == "inbox":
+        db.table("registros").update({"tipo": "nota", "status": "inbox"}).eq("id", rid).execute()
+        await query.edit_message_text(f"Salvo no inbox:\n\"{texto}\"")
+
+    elif acao == "ideia":
+        db.table("registros").update({"tipo": "ideia", "status": "inbox"}).eq("id", rid).execute()
+        await query.edit_message_text(f"Ideia salva:\n\"{texto}\"")
+
+    elif acao == "tarefa":
+        nova_tarefa(texto)
+        db.table("registros").delete().eq("id", rid).execute()
+        await query.edit_message_text(f"Tarefa criada:\n\"{texto}\"")
+
+    elif acao == "insight":
+        db.table("registros").update({"tipo": "insight", "status": "pendente"}).eq("id", rid).execute()
+        preview = texto[:60] + ("..." if len(texto) > 60 else "")
+        await query.edit_message_text(
+            f"\"{preview}\"\n\nSelecione a tag:",
+            reply_markup=_tag_keyboard(get_tags()),
+        )
+
+
 async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         set_estado("ideia")
@@ -258,12 +315,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
-    # sem estado: inbox padrão
+    # sem estado: perguntar o que fazer
     try:
-        registrar(texto, tipo="nota", status="inbox")
-        await update.message.reply_text(f"Salvo no inbox:\n\"{texto}\"")
+        registrar(texto, tipo="rascunho", status="classificar")
+        preview = texto[:80] + ("..." if len(texto) > 80 else "")
+        await update.message.reply_text(
+            f"\"{preview}\"\n\nO que fazer com isso?",
+            reply_markup=CLASSIFICAR_KEYBOARD,
+        )
     except Exception as e:
-        await update.message.reply_text(f"Erro ao salvar: {e}")
+        await update.message.reply_text(f"Erro: {e}")
 
 
 def setup_application() -> Application:
@@ -281,6 +342,7 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("registrar", cmd_registrar))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
     app.add_handler(CommandHandler("exportar", cmd_exportar))
+    app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
     app.add_handler(CallbackQueryHandler(callback_insight, pattern=r"^i:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return app
