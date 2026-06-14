@@ -32,8 +32,8 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 /projeto <i>[nome]</i> — detalhes, pendências e decisões
 
 <b>INSIGHTS</b>
-/insight <i>[texto]</i> — capturar insight (selecione a tag por botão)
-/insights <i>[tag]</i> — listar insights por tag
+/insight — capturar insight (bot pergunta o texto e a tag)
+/insights — listar insights (bot pergunta a tag)
 
 <b>REGISTROS</b>
 /ideia <i>[texto]</i> — captura rápida para o inbox
@@ -153,8 +153,10 @@ async def cmd_insight_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_insights(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tag = " ".join(context.args) if context.args else None
-    await update.message.reply_text(listar_insights(tag))
+    if not context.args:
+        await update.message.reply_text(listar_insights(None))
+        return
+    await update.message.reply_text(listar_insights(" ".join(context.args)))
 
 
 async def callback_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,10 +166,8 @@ async def callback_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tag = query.data[2:]
 
     if tag == "__nova__":
-        await query.edit_message_text(
-            "Use /insight_tag [nome da tag] para salvar.\n"
-            "Exemplo: /insight_tag FinançasTudo"
-        )
+        set_estado("nova_tag")
+        await query.edit_message_text("Qual o nome da nova tag?")
         return
 
     await query.edit_message_text(confirmar_tag(tag))
@@ -225,6 +225,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if estado == "nova_tag":
+        set_estado(None)
+        await update.message.reply_text(confirmar_tag(texto))
+        return
+
     if estado == "tarefa":
         set_estado(None)
         await update.message.reply_text(nova_tarefa(texto))
@@ -271,7 +276,6 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("projetos", cmd_projetos))
     app.add_handler(CommandHandler("projeto", cmd_projeto))
     app.add_handler(CommandHandler("insight", cmd_insight))
-    app.add_handler(CommandHandler("insight_tag", cmd_insight_tag))
     app.add_handler(CommandHandler("insights", cmd_insights))
     app.add_handler(CommandHandler("ideia", cmd_ideia))
     app.add_handler(CommandHandler("registrar", cmd_registrar))
