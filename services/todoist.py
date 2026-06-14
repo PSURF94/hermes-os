@@ -34,6 +34,15 @@ def criar_tarefa(titulo: str, label: str | None = None) -> dict:
     return resp.json()
 
 
+def listar_projetos_todoist() -> list:
+    resp = httpx.get(f"{BASE}/projects", headers=_headers())
+    resp.raise_for_status()
+    data = resp.json()
+    if isinstance(data, dict):
+        return data.get("results") or data.get("items") or []
+    return data
+
+
 def concluir_tarefa(busca: str) -> str:
     tarefas = listar_tarefas()
     match = next((t for t in tarefas if busca.lower() in t.get("content", "").lower()), None)
