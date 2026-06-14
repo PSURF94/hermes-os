@@ -14,7 +14,11 @@ def _headers() -> dict:
 def listar_tarefas() -> list:
     resp = httpx.get(f"{BASE}/tasks", headers=_headers())
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    # API v1 retorna {"results": [...], "next_cursor": ...} em vez de lista direta
+    if isinstance(data, dict):
+        return data.get("results") or data.get("items") or []
+    return data
 
 
 def criar_tarefa(titulo: str) -> dict:
