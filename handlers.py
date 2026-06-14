@@ -2,6 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from config import TELEGRAM_BOT_TOKEN
+from modules.registros import registrar
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
@@ -91,7 +92,11 @@ async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Informe a ideia.\nExemplo: /ideia Adicionar gráfico de evolução no OrganizePJ")
         return
     texto = " ".join(args)
-    await update.message.reply_text(f"Ideia recebida: \"{texto}\"\n\nFase 2 (Supabase) — ainda não implementado.")
+    try:
+        registrar(texto, tipo="ideia", status="inbox")
+        await update.message.reply_text(f"Ideia salva no inbox:\n\"{texto}\"")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
 async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -100,7 +105,11 @@ async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Informe o texto a registrar.\nExemplo: /registrar Decisão: usar Cushion no timeline")
         return
     texto = " ".join(args)
-    await update.message.reply_text(f"Registro: \"{texto}\"\n\nFase 2 (Supabase) — ainda não implementado.")
+    try:
+        registrar(texto, tipo="nota", status="ativo")
+        await update.message.reply_text(f"Registrado:\n\"{texto}\"")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -118,9 +127,11 @@ async def cmd_exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
-    await update.message.reply_text(
-        f"Nota recebida: \"{texto}\"\n\nFase 2 (Supabase) — será salvo automaticamente no inbox quando implementado."
-    )
+    try:
+        registrar(texto, tipo="nota", status="inbox")
+        await update.message.reply_text(f"Salvo no inbox:\n\"{texto}\"")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
 def setup_application() -> Application:
