@@ -1,0 +1,33 @@
+import os
+import httpx
+
+TODOIST_TOKEN = os.getenv("TODOIST_API_TOKEN")
+BASE = "https://api.todoist.com/api/v1"
+
+
+def _headers() -> dict:
+    if not TODOIST_TOKEN:
+        raise ValueError("TODOIST_API_TOKEN não configurado no .env")
+    return {"Authorization": f"Bearer {TODOIST_TOKEN}"}
+
+
+def listar_tarefas() -> list:
+    resp = httpx.get(f"{BASE}/tasks", headers=_headers())
+    resp.raise_for_status()
+    return resp.json()
+
+
+def criar_tarefa(titulo: str) -> dict:
+    resp = httpx.post(f"{BASE}/tasks", headers=_headers(), json={"content": titulo})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def concluir_tarefa(busca: str) -> str:
+    tarefas = listar_tarefas()
+    match = next((t for t in tarefas if busca.lower() in t.get("content", "").lower()), None)
+    if not match:
+        return f'Nenhuma tarefa encontrada com "{busca}".'
+    resp = httpx.post(f"{BASE}/tasks/{match['id']}/close", headers=_headers())
+    resp.raise_for_status()
+    return f'Concluída: {match["content"]}'

@@ -4,6 +4,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 from config import TELEGRAM_BOT_TOKEN
 from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
+from modules.tarefas import lista_tarefas, nova_tarefa, feito
+from modules.projetos import listar_projetos, detalhar_projeto
+from modules.exportar import exportar_projeto
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
@@ -78,18 +81,21 @@ async def cmd_tarefa(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Use:\n/tarefa [texto] — criar tarefa\n/tarefa listar — ver pendentes"
         )
     elif args[0] == "listar":
-        await update.message.reply_text("Listar tarefas — Fase 4 (Microsoft To Do).\n\nAinda não implementado.")
+        await update.message.reply_text(lista_tarefas())
     else:
-        texto = " ".join(args)
-        await update.message.reply_text(f"Criar tarefa: \"{texto}\"\n\nFase 4 (Microsoft To Do) — ainda não implementado.")
+        await update.message.reply_text(nova_tarefa(" ".join(args)))
 
 
 async def cmd_feito(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Concluir tarefa — Fase 4 (Microsoft To Do).\n\nAinda não implementado.")
+    args = context.args
+    if not args:
+        await update.message.reply_text("Uso: /feito [título parcial]\nExemplo: /feito reunião")
+        return
+    await update.message.reply_text(feito(" ".join(args)))
 
 
 async def cmd_projetos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Projetos — Fase 3 (Supabase).\n\nAinda não implementado.")
+    await update.message.reply_text(listar_projetos())
 
 
 async def cmd_projeto(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,8 +103,7 @@ async def cmd_projeto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args:
         await update.message.reply_text("Informe o nome do projeto.\nExemplo: /projeto OrganizePJ")
         return
-    nome = " ".join(args)
-    await update.message.reply_text(f"Projeto \"{nome}\" — Fase 3 (Supabase).\n\nAinda não implementado.")
+    await update.message.reply_text(detalhar_projeto(" ".join(args)))
 
 
 async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,8 +141,7 @@ async def cmd_exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args:
         await update.message.reply_text("Informe o projeto.\nExemplo: /exportar OrganizePJ")
         return
-    nome = " ".join(args)
-    await update.message.reply_text(f"Exportar contexto de \"{nome}\" — Fase 7.\n\nAinda não implementado.")
+    await update.message.reply_text(exportar_projeto(" ".join(args)))
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -11,6 +11,4 @@ google-auth==2.35.0
 google-auth-oauthlib==1.2.1
 google-api-python-client==2.151.0
 
-# Fase 4 — Microsoft To Do
-# msal==1.31.0
-# requests==2.32.3
+# Fase 4 — Todoist (API token direto, sem OAuth)
