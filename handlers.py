@@ -3,13 +3,15 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 from config import TELEGRAM_BOT_TOKEN
 from modules.registros import registrar
+from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
 <b>AGENDA</b>
 /agenda — compromissos de hoje
-/agenda adicionar <i>[descrição]</i> — criar compromisso
-/agenda remover <i>[id]</i> — remover compromisso
+/agenda semana — próximos 7 dias
+/agenda adicionar <i>DD/MM HH:MM [título]</i> — criar compromisso
+/agenda remover <i>[título parcial]</i> — remover compromisso
 
 <b>TAREFAS</b>
 /tarefa <i>[texto]</i> — criar tarefa
@@ -47,11 +49,24 @@ async def cmd_ajuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_agenda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
-        await update.message.reply_text("Agenda — Fase 3 (Google Calendar).\n\nAinda não implementado.")
+        await update.message.reply_text(agenda_hoje())
+    elif args[0] == "semana":
+        await update.message.reply_text(agenda_semana())
     elif args[0] == "adicionar":
-        await update.message.reply_text("Adicionar compromisso — Fase 3 (Google Calendar).\n\nAinda não implementado.")
+        if len(args) < 4:
+            await update.message.reply_text(
+                "Uso: /agenda adicionar DD/MM HH:MM [título]\n"
+                "Exemplo: /agenda adicionar 15/06 14:00 Reunião OrganizePJ"
+            )
+            return
+        await update.message.reply_text(
+            adicionar_compromisso(args[1], args[2], " ".join(args[3:]))
+        )
     elif args[0] == "remover":
-        await update.message.reply_text("Remover compromisso — Fase 3 (Google Calendar).\n\nAinda não implementado.")
+        if len(args) < 2:
+            await update.message.reply_text("Uso: /agenda remover [título parcial]\nExemplo: /agenda remover Reunião")
+            return
+        await update.message.reply_text(remover_compromisso(" ".join(args[1:])))
     else:
         await update.message.reply_text("Subcomando não reconhecido. Use /ajuda para ver os comandos disponíveis.")
 

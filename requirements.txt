@@ -6,9 +6,9 @@ python-dotenv==1.0.1
 supabase==2.9.0
 
 # Fase 3 — Google Calendar
-# google-auth==2.35.0
-# google-auth-oauthlib==1.2.1
-# google-api-python-client==2.151.0
+google-auth==2.35.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.151.0
 
 # Fase 4 — Microsoft To Do
 # msal==1.31.0

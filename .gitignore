@@ -1,4 +1,5 @@
 .env
+credentials.json
 auth/token_google.json
 auth/token_microsoft.json
 __pycache__/
