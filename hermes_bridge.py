@@ -57,9 +57,11 @@ Pergunta: {pergunta}"""
         ["claude", "-p", prompt],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=120,
+        shell=True,
     )
-    return result.stdout.strip() or "Claude não retornou resposta."
+    return result.stdout.strip() or result.stderr.strip() or "Claude não retornou resposta."
 
 
 def processar():
@@ -95,6 +97,21 @@ def processar():
 
     send_telegram(msg["chat_id"], resposta)
     print(f"✓ Respondido: {resposta[:60]}...")
+
+
+def aguardar_resposta(timeout_min: int = 30) -> str | None:
+    """Aguarda resposta de Paulo via Telegram. Retorna o texto ou None se timeout."""
+    db = get_client()
+    inicio = time.time()
+    while time.time() - inicio < timeout_min * 60:
+        r = db.table("respostas_claude").select("id, conteudo").eq("lida", False).order("criado_em").limit(1).execute()
+        if r.data:
+            rid = r.data[0]["id"]
+            texto = r.data[0]["conteudo"]
+            db.table("respostas_claude").update({"lida": True}).eq("id", rid).execute()
+            return texto
+        time.sleep(10)
+    return None
 
 
 def main():

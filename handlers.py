@@ -259,6 +259,19 @@ async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
+async def cmd_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        set_estado("reply")
+        await update.message.reply_text("Qual sua resposta para o Claude?")
+        return
+    texto = " ".join(context.args)
+    try:
+        get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
+        await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
+    except Exception as e:
+        await update.message.reply_text(f"Erro: {e}")
+
+
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(gerar_briefing())
 
@@ -344,6 +357,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
+    if estado == "reply":
+        set_estado(None)
+        try:
+            get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
+            await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
+        except Exception as e:
+            await update.message.reply_text(f"Erro: {e}")
+        return
+
     # sem estado: perguntar o que fazer
     try:
         registrar(texto, tipo="rascunho", status="classificar")
@@ -396,6 +418,7 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("insights", cmd_insights))
     app.add_handler(CommandHandler("ideia", cmd_ideia))
     app.add_handler(CommandHandler("registrar", cmd_registrar))
+    app.add_handler(CommandHandler("reply", cmd_reply))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
     app.add_handler(CommandHandler("exportar", cmd_exportar))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))

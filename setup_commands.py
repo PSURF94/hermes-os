@@ -21,6 +21,7 @@ COMMANDS = [
     BotCommand("exportar",     "Exportar contexto para colar no Claude"),
     BotCommand("ideia",        "Captura rápida para o inbox"),
     BotCommand("registrar",    "Salvar nota processada"),
+    BotCommand("reply",        "Responder ao Claude em tarefa"),
     BotCommand("ajuda",        "Ver todos os comandos"),
 ]
 
