@@ -3,6 +3,7 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters,
 )
+from services.whisper import transcrever
 
 from config import TELEGRAM_BOT_TOKEN
 from modules.registros import registrar
@@ -355,6 +356,33 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Erro: {e}")
 
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = str(update.effective_chat.id)
+    await update.message.reply_text("Transcrevendo áudio...")
+
+    try:
+        file = await context.bot.get_file(update.message.voice.file_id)
+        audio_bytes = bytes(await file.download_as_bytearray())
+        texto = transcrever(audio_bytes)
+    except Exception as e:
+        await update.message.reply_text(f"Erro na transcrição: {e}")
+        return
+
+    try:
+        get_client().table("mensagens").insert({
+            "conteudo": texto,
+            "status": "pendente",
+            "chat_id": chat_id,
+        }).execute()
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao salvar: {e}")
+        return
+
+    await update.message.reply_text(
+        f"Entendido: \"{texto}\"\n\nAguardando Claude..."
+    )
+
+
 def setup_application() -> Application:
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
@@ -372,5 +400,6 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("exportar", cmd_exportar))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
     app.add_handler(CallbackQueryHandler(callback_insight, pattern=r"^i:"))
+    app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return app
