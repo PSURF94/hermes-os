@@ -11,6 +11,7 @@ from config import TELEGRAM_BOT_TOKEN
 from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
+from services.todoist import ETIQUETAS_VALIDAS
 from modules.projetos import listar_projetos, detalhar_projeto
 from modules.exportar import exportar_projeto
 from modules.briefing import gerar_briefing
@@ -52,6 +53,13 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
 <i>Texto livre → salvo automaticamente no inbox.</i>"""
 
+
+TAREFA_CONFIRM_KEYBOARD = InlineKeyboardMarkup([
+    [
+        InlineKeyboardButton("✅ Criar tarefa", callback_data="t:criar"),
+        InlineKeyboardButton("📋 Outras opções", callback_data="t:outros"),
+    ]
+])
 
 CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
     [
@@ -196,6 +204,39 @@ async def callback_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await query.edit_message_text(confirmar_tag(tag))
+
+
+async def callback_tarefa_detect(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    acao = query.data[2:]
+    db = get_client()
+
+    result = (
+        db.table("registros")
+        .select("id, conteudo")
+        .eq("status", "classificar")
+        .order("criado_em", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        await query.edit_message_text("Entrada não encontrada.")
+        return
+
+    rid = result.data[0]["id"]
+    texto = result.data[0]["conteudo"]
+
+    if acao == "criar":
+        db.table("registros").delete().eq("id", rid).execute()
+        await query.edit_message_text(nova_tarefa(texto))
+
+    elif acao == "outros":
+        preview = texto[:80] + ("..." if len(texto) > 80 else "")
+        await query.edit_message_text(
+            f"\"{preview}\"\n\nO que fazer com isso?",
+            reply_markup=CLASSIFICAR_KEYBOARD,
+        )
 
 
 async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -397,6 +438,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
+    # detecta #etiqueta válida → confirmação de tarefa
+    tag_match = re.search(r"#(\w+)", texto)
+    if tag_match and tag_match.group(1).lower() in ETIQUETAS_VALIDAS:
+        tag = tag_match.group(1).lower()
+        titulo_limpo = re.sub(r"\s*#\w+", "", texto).strip()
+        try:
+            await asyncio.gather(
+                update.message.reply_text(
+                    f"Criar tarefa \"{titulo_limpo}\" #{tag}?",
+                    reply_markup=TAREFA_CONFIRM_KEYBOARD,
+                ),
+                asyncio.to_thread(registrar, texto, tipo="rascunho", status="classificar"),
+            )
+        except Exception as e:
+            await update.message.reply_text(f"Erro: {e}")
+        return
+
     # sem estado: mostrar keyboard imediatamente e salvar em paralelo
     try:
         preview = texto[:80] + ("..." if len(texto) > 80 else "")
@@ -462,6 +520,7 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("reply", cmd_reply))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
     app.add_handler(CommandHandler("exportar", cmd_exportar))
+    app.add_handler(CallbackQueryHandler(callback_tarefa_detect, pattern=r"^t:"))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
     app.add_handler(CallbackQueryHandler(callback_insight, pattern=r"^i:"))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
