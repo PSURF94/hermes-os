@@ -288,6 +288,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     estado = get_estado()
 
+    if estado == "reply":
+        set_estado(None)
+        try:
+            get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
+            await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
+        except Exception as e:
+            await update.message.reply_text(f"Erro: {e}")
+        return
+
     if estado == "insight":
         set_estado(None)
         salvar_pendente(texto)
@@ -388,6 +397,14 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
         texto = transcrever(audio_bytes)
     except Exception as e:
         await update.message.reply_text(f"Erro na transcrição: {e}")
+        return
+
+    # Se Claude está aguardando resposta, redireciona para respostas_claude
+    estado = get_estado()
+    if estado == "reply":
+        set_estado(None)
+        get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
+        await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
         return
 
     try:
