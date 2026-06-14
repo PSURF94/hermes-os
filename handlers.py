@@ -10,32 +10,32 @@ from modules.exportar import exportar_projeto
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
-<b>AGENDA</b>
+<b>AGENDA</b> — Google Calendar
 /agenda — compromissos de hoje
 /agenda semana — próximos 7 dias
 /agenda adicionar <i>DD/MM HH:MM [título]</i> — criar compromisso
 /agenda remover <i>[título parcial]</i> — remover compromisso
 
-<b>TAREFAS</b>
+<b>TAREFAS</b> — Todoist
 /tarefa <i>[texto]</i> — criar tarefa
 /tarefa listar — tarefas pendentes
-/feito <i>[id]</i> — marcar como concluída
+/feito <i>[título parcial]</i> — marcar como concluída
 
-<b>PROJETOS</b>
-/projetos — todos os projetos ativos
-/projeto <i>[nome]</i> — detalhes de um projeto
+<b>PROJETOS</b> — Supabase
+/projetos — todos os projetos ativos com próxima ação
+/projeto <i>[nome]</i> — detalhes, pendências e decisões
 
 <b>REGISTROS</b>
-/ideia <i>[texto]</i> — captura rápida (inbox)
-/registrar <i>[texto]</i> — salvar nota
+/ideia <i>[texto]</i> — captura rápida para o inbox
+/registrar <i>[texto]</i> — salvar nota processada
 
 <b>BRIEFING</b>
-/briefing — relatório completo do momento
+/briefing — agenda + tarefas + projetos num só lugar
 
 <b>EXPORTAR</b>
-/exportar <i>[projeto]</i> — contexto formatado para Claude
+/exportar <i>[projeto]</i> — contexto formatado para colar no Claude
 
-<i>Qualquer texto sem comando é salvo automaticamente como nota no inbox.</i>"""
+<i>Texto livre → salvo automaticamente no inbox.</i>"""
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
