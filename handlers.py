@@ -7,6 +7,7 @@ from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, re
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
 from modules.projetos import listar_projetos, detalhar_projeto
 from modules.exportar import exportar_projeto
+from modules.briefing import gerar_briefing
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
@@ -133,7 +134,7 @@ async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Briefing — disponível na Fase 6 (após Agenda, Tarefas e Projetos).\n\nAinda não implementado.")
+    await update.message.reply_text(gerar_briefing())
 
 
 async def cmd_exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
