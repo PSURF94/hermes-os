@@ -59,6 +59,9 @@ CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
         InlineKeyboardButton("Compromisso",  callback_data="c:compromisso"),
         InlineKeyboardButton("Nota",         callback_data="c:nota"),
     ],
+    [
+        InlineKeyboardButton("→ Claude",     callback_data="c:claude"),
+    ],
 ])
 
 
@@ -231,6 +234,17 @@ async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYP
             f"\"{preview}\"\n\nSelecione a tag:",
             reply_markup=_tag_keyboard(get_tags()),
         )
+
+    elif acao == "claude":
+        chat_id = str(query.message.chat_id)
+        db.table("registros").delete().eq("id", rid).execute()
+        db.table("mensagens").insert({
+            "conteudo": texto,
+            "status": "pendente",
+            "chat_id": chat_id,
+        }).execute()
+        preview = texto[:60] + ("..." if len(texto) > 60 else "")
+        await query.edit_message_text(f"Enviado ao Claude:\n\"{preview}\"\n\nAguardando resposta...")
 
 
 async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
