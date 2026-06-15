@@ -2,8 +2,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
-from services.todoist import listar_tarefas
+from services.todoist import listar_tarefas, listar_projetos_todoist
 from services.supabase_client import get_client
+from modules.briefing import PROJETOS_OCULTOS_BRIEFING
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -40,7 +41,12 @@ def gerar_resenha() -> str:
     # Tarefas
     partes.append("✅ TAREFAS PENDENTES")
     try:
-        tarefas = listar_tarefas()
+        try:
+            projetos_todoist = listar_projetos_todoist()
+            ids_excluidos = {p["id"] for p in projetos_todoist if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
+        except Exception:
+            ids_excluidos = set()
+        tarefas = [t for t in listar_tarefas() if t.get("project_id") not in ids_excluidos]
         if not tarefas:
             partes.append("  Nenhuma.")
         else:
