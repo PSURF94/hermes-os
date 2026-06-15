@@ -16,7 +16,7 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             resenha = gerar_resenha()
-            ok = notificar(resenha)
+            ok = notificar(resenha, html=True)
             self.send_response(200 if ok else 500)
             self.end_headers()
             self.wfile.write(b"OK" if ok else b"Falhou ao enviar Telegram")

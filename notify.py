@@ -14,11 +14,14 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 PAULO_CHAT_ID = "7137570580"
 
 
-def notificar(mensagem: str, aguardar_resposta: bool = False) -> bool:
+def notificar(mensagem: str, aguardar_resposta: bool = False, html: bool = False) -> bool:
     try:
+        payload: dict = {"chat_id": PAULO_CHAT_ID, "text": mensagem}
+        if html:
+            payload["parse_mode"] = "HTML"
         resp = httpx.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-            json={"chat_id": PAULO_CHAT_ID, "text": mensagem},
+            json=payload,
             timeout=10,
         )
         if aguardar_resposta and resp.status_code == 200:

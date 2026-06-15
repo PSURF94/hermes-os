@@ -1,3 +1,4 @@
+import html as _html
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -17,6 +18,10 @@ def _fmt_hora(evento: dict) -> str:
     if "dateTime" in start:
         return datetime.fromisoformat(start["dateTime"]).strftime("%H:%M")
     return "Dia todo"
+
+
+def _e(s: str) -> str:
+    return _html.escape(str(s))
 
 
 def gerar_resenha() -> str:
@@ -44,9 +49,9 @@ def gerar_resenha() -> str:
             partes.append("  Sem compromissos.")
         else:
             for e in eventos:
-                partes.append(f"  {_fmt_hora(e)}  {e.get('summary', 'Sem título')}")
+                partes.append(f"  {_fmt_hora(e)}  {_e(e.get('summary', 'Sem título'))}")
     except Exception as e:
-        partes.append(f"  Erro: {e}")
+        partes.append(f"  Erro: {_e(e)}")
 
     partes.append("")
 
@@ -63,11 +68,11 @@ def gerar_resenha() -> str:
             partes.append("  Nenhuma.")
         else:
             for t in tarefas[:5]:
-                partes.append(f"  • {t.get('content', '')}")
+                partes.append(f"  • {_e(t.get('content', ''))}")
             if len(tarefas) > 5:
                 partes.append(f"  ...e mais {len(tarefas) - 5}")
     except Exception as e:
-        partes.append(f"  Erro: {e}")
+        partes.append(f"  Erro: {_e(e)}")
 
     partes.append("")
 
@@ -86,10 +91,10 @@ def gerar_resenha() -> str:
             partes.append("  Nenhum projeto ativo.")
         else:
             for p in result.data:
-                acao = p.get("proxima_acao") or "—"
-                partes.append(f"  {p['nome']}: {acao}")
+                acao = _e(p.get("proxima_acao") or "—")
+                partes.append(f"  {_e(p['nome'])}: {acao}")
     except Exception as e:
-        partes.append(f"  Erro: {e}")
+        partes.append(f"  Erro: {_e(e)}")
 
     partes.append("")
 
@@ -110,11 +115,11 @@ def gerar_resenha() -> str:
             partes.append("  Nenhum insight recente.")
         else:
             for r in result.data:
-                tag = r.get("projeto") or "geral"
-                texto = r["conteudo"]
-                linha = f"  [{tag}] {texto[:90]}{'...' if len(texto) > 90 else ''}"
-                partes.append(linha)
+                tag = _e(r.get("projeto") or "geral")
+                texto_raw = r["conteudo"]
+                texto = _e(texto_raw[:90]) + ("..." if len(texto_raw) > 90 else "")
+                partes.append(f"  [{tag}] {texto}")
     except Exception as e:
-        partes.append(f"  Erro: {e}")
+        partes.append(f"  Erro: {_e(e)}")
 
     return "\n".join(partes)
