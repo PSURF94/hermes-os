@@ -5,6 +5,8 @@ from services.google_calendar import listar_eventos_hoje
 from services.todoist import listar_tarefas, listar_projetos_todoist
 from services.supabase_client import get_client
 from modules.briefing import PROJETOS_OCULTOS_BRIEFING
+from modules.boletim import boletim_mais_recente
+from modules.escala import escala_hoje
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -23,6 +25,16 @@ def gerar_resenha() -> str:
     data_fmt = f"{dia}, {hoje.day:02d}/{hoje.month:02d}"
 
     partes = [f"☀️ Bom dia, Paulo! Resenha de {data_fmt}", ""]
+
+    # Boletim meteorológico
+    partes.append("🌤️ BOLETIM METEOROLÓGICO")
+    partes.append(boletim_mais_recente())
+    partes.append("")
+
+    # Escala CERD
+    partes.append("🚒 ESCALA CERD")
+    partes.append(escala_hoje())
+    partes.append("")
 
     # Agenda
     partes.append("📅 AGENDA HOJE")
