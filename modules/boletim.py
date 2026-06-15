@@ -51,7 +51,7 @@ def _bames_mais_recente() -> tuple[str, str] | tuple[None, None]:
         for rev in (1, 0):
             url = _url_boletim(d, rev)
             try:
-                resp = httpx.head(url, follow_redirects=True, timeout=8)
+                resp = httpx.head(url, follow_redirects=True, timeout=3)
                 if resp.status_code == 200:
                     sufixo = " rev.1" if rev == 1 else ""
                     return url, f"BAMES {d.day:02d}/{d.month:02d}{sufixo}"
