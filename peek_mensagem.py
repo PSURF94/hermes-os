@@ -13,7 +13,7 @@ from services.supabase_client import get_client
 db = get_client()
 r = (
     db.table("mensagens")
-    .select("id, conteudo, chat_id")
+    .select("id, conteudo, chat_id, imagem_url")
     .eq("status", "pendente")
     .order("criado_em")
     .limit(1)

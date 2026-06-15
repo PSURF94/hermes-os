@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 from services.whisper import transcrever
 
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN as _TOKEN
 from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
@@ -469,6 +469,29 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Erro: {e}")
 
 
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = str(update.effective_chat.id)
+    photo = update.message.photo[-1]  # maior resolução disponível
+    caption = update.message.caption or ""
+
+    try:
+        file = await context.bot.get_file(photo.file_id)
+        imagem_url = f"https://api.telegram.org/file/bot{_TOKEN}/{file.file_path}"
+        conteudo = caption if caption else "📷 Imagem enviada por Paulo"
+
+        get_client().table("mensagens").insert({
+            "conteudo": conteudo,
+            "chat_id": chat_id,
+            "status": "pendente",
+            "imagem_url": imagem_url,
+        }).execute()
+
+        aviso = f"Imagem recebida — \"{caption}\"" if caption else "Imagem recebida."
+        await update.message.reply_text(f"{aviso}\nAguardando Claude...")
+    except Exception as e:
+        await update.message.reply_text(f"Erro ao processar imagem: {e}")
+
+
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     await update.message.reply_text("Transcrevendo áudio...")
@@ -505,7 +528,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def setup_application() -> Application:
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("ajuda", cmd_ajuda))
     app.add_handler(CommandHandler("agenda", cmd_agenda))
@@ -523,6 +546,7 @@ def setup_application() -> Application:
     app.add_handler(CallbackQueryHandler(callback_tarefa_detect, pattern=r"^t:"))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
     app.add_handler(CallbackQueryHandler(callback_insight, pattern=r"^i:"))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     return app
