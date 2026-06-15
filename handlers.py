@@ -22,37 +22,51 @@ from services.supabase_client import get_client
 
 AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 
-<b>AGENDA</b> — Google Calendar
+<b>AGENDA</b>
 /agenda — compromissos de hoje
 /agenda semana — próximos 7 dias
-/agenda adicionar <i>DD/MM HH:MM [título]</i> — criar compromisso
-/agenda remover <i>[título parcial]</i> — remover compromisso
+/agenda adicionar <i>DD/MM HH:MM título</i> — criar compromisso
+/agenda remover <i>título parcial</i> — remover compromisso
 
-<b>TAREFAS</b> — Todoist
-/tarefa <i>[texto] [#oper|#adm|#renda|#pessoal]</i> — criar tarefa
+<b>TAREFAS</b>
+/tarefa <i>texto #oper|#adm|#renda|#pessoal</i> — criar tarefa com etiqueta
 /tarefa listar — todas as tarefas pendentes
 /tarefa listar <i>#etiqueta</i> — filtrar por etiqueta
-/feito <i>[título parcial]</i> — marcar como concluída
+/feito <i>título parcial</i> — marcar como concluída
 
-<b>PROJETOS</b> — Supabase
-/projetos — todos os projetos ativos com próxima ação
-/projeto <i>[nome]</i> — detalhes, pendências e decisões
+<b>PROJETOS</b>
+/projetos — lista projetos ativos com próxima ação
+/projeto <i>nome</i> — detalhes, pendências e decisões
+/exportar <i>nome</i> — contexto formatado para colar no Claude
 
-<b>INSIGHTS</b>
-/insight — capturar insight (bot pergunta o texto e a tag)
-/insights — listar insights (bot pergunta a tag)
-
-<b>REGISTROS</b>
-/ideia <i>[texto]</i> — captura rápida para o inbox
-/registrar <i>[texto]</i> — salvar nota processada
+<b>INSIGHTS E REGISTROS</b>
+/insight — captura insight (bot pede texto e tag)
+/insights — lista insights por tag
+/ideia <i>texto</i> — captura rápida para o inbox
+/registrar <i>texto</i> — salva nota processada
 
 <b>BRIEFING</b>
 /briefing — agenda + tarefas + projetos num só lugar
 
-<b>EXPORTAR</b>
-/exportar <i>[projeto]</i> — contexto formatado para colar no Claude
+<b>TEXTO LIVRE</b>
+Qualquer mensagem → escolha: 💡 Insight · ✅ Tarefa · 📅 Compromisso · 📝 Nota · 🤖 Claude
+Texto com <i>#etiqueta</i> → confirma criação de tarefa automaticamente
 
-<i>Texto livre → salvo automaticamente no inbox.</i>"""
+<b>VOZ</b>
+Áudio → transcrito via Whisper → vai para a fila do Claude
+
+<b>FOTOS</b>
+Só a foto → Claude analisa livremente (mande texto logo depois para contexto)
+Foto com legenda → legenda é a instrução
+Texto antes da foto (até 60s) → texto vira contexto automático
+Foto + texto seguinte → texto adicionado como contexto
+
+<b>🤖 CLAUDE</b>
+Análise complexa, geração de gráficos, mudanças no código, deploy.
+Use /reply para responder quando Claude pedir informação.
+
+<b>AUTOMÁTICO</b>
+Resenha matinal às 07h: clima · escala CERD · agenda · tarefas · projetos · insights"""
 
 
 TAREFA_CONFIRM_KEYBOARD = InlineKeyboardMarkup([
