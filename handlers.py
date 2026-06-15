@@ -476,7 +476,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         file = await context.bot.get_file(photo.file_id)
-        imagem_url = f"https://api.telegram.org/file/bot{_TOKEN}/{file.file_path}"
+        imagem_url = file.file_path  # já retorna URL completa no PTB 21
         conteudo = caption if caption else "📷 Imagem enviada por Paulo"
 
         get_client().table("mensagens").insert({
