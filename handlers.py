@@ -1,5 +1,6 @@
 import asyncio
 import re
+from datetime import datetime, timedelta, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -351,6 +352,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     estado = get_estado()
 
+    # Cenário 3: texto enviado depois de foto sem legenda
+    if estado and estado.startswith("foto_contexto:"):
+        msg_id = int(estado.split(":")[1])
+        set_estado(None)
+        get_client().table("mensagens").update({"conteudo": texto}).eq("id", msg_id).execute()
+        await update.message.reply_text(f"Contexto adicionado à foto:\n\"{texto}\"\nAguardando Claude...")
+        return
+
     if estado == "reply":
         set_estado(None)
         try:
@@ -471,23 +480,53 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
-    photo = update.message.photo[-1]  # maior resolução disponível
+    photo = update.message.photo[-1]
     caption = update.message.caption or ""
+    db = get_client()
 
     try:
         file = await context.bot.get_file(photo.file_id)
-        imagem_url = file.file_path  # já retorna URL completa no PTB 21
-        conteudo = caption if caption else "📷 Imagem enviada por Paulo"
+        imagem_url = file.file_path
 
-        get_client().table("mensagens").insert({
+        if caption:
+            # Cenário 2: foto com legenda — legenda é o contexto
+            conteudo = caption
+        else:
+            # Cenário 1/3: sem legenda — busca texto enviado nos últimos 60s
+            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+            r = (
+                db.table("registros")
+                .select("id, conteudo")
+                .eq("status", "classificar")
+                .gte("criado_em", cutoff)
+                .order("criado_em", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if r.data:
+                conteudo = r.data[0]["conteudo"]
+                db.table("registros").delete().eq("id", r.data[0]["id"]).execute()
+            else:
+                conteudo = "📷 Imagem enviada — analise livremente."
+
+        result = db.table("mensagens").insert({
             "conteudo": conteudo,
             "chat_id": chat_id,
             "status": "pendente",
             "imagem_url": imagem_url,
         }).execute()
 
-        aviso = f"Imagem recebida — \"{caption}\"" if caption else "Imagem recebida."
-        await update.message.reply_text(f"{aviso}\nAguardando Claude...")
+        if caption:
+            await update.message.reply_text(f"Foto recebida — \"{caption}\"\nAguardando Claude...")
+        elif result.data:
+            msg_id = result.data[0]["id"]
+            set_estado(f"foto_contexto:{msg_id}")
+            await update.message.reply_text(
+                "Foto recebida.\nMande um texto agora para adicionar contexto, ou ignore para Claude analisar livremente."
+            )
+        else:
+            await update.message.reply_text("Foto recebida. Aguardando Claude...")
+
     except Exception as e:
         await update.message.reply_text(f"Erro ao processar imagem: {e}")
 
