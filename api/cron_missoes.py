@@ -3,7 +3,7 @@ import os
 import httpx
 from http.server import BaseHTTPRequestHandler
 
-from services.todoist import listar_missoes
+from modules.missoes_dia import get_missoes
 
 CHAT_ID = 7137570580
 
@@ -18,7 +18,7 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            missoes = listar_missoes()
+            missoes = get_missoes()
 
             if not missoes:
                 self._ok("no missions")
@@ -27,7 +27,6 @@ class handler(BaseHTTPRequestHandler):
             linhas = ["🎯 <b>Missões do dia — como foi?</b>\n"]
             for m in missoes:
                 linhas.append(f"• {m['content']}")
-            texto = "\n".join(linhas)
 
             keyboard = []
             for m in missoes:
@@ -41,7 +40,7 @@ class handler(BaseHTTPRequestHandler):
                 f"https://api.telegram.org/bot{token}/sendMessage",
                 json={
                     "chat_id": CHAT_ID,
-                    "text": texto,
+                    "text": "\n".join(linhas),
                     "parse_mode": "HTML",
                     "reply_markup": {"inline_keyboard": keyboard},
                 },

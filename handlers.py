@@ -13,7 +13,11 @@ from modules.gemini_chat import chat as gemini_chat, analyze_image as gemini_ima
 from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
-from services.todoist import ETIQUETAS_VALIDAS, criar_missao as _criar_missao, listar_missoes as _listar_missoes, concluir_por_id as _concluir_por_id
+from services.todoist import ETIQUETAS_VALIDAS, concluir_por_id as _concluir_por_id
+from modules.missoes_dia import (
+    get_missoes, get_pendente, get_selecionadas, toggle, confirmar,
+    adicionar_manual, remover, build_keyboard_raw,
+)
 from modules.briefing import gerar_briefing
 from services.estado import get_estado, set_estado
 from services.supabase_client import get_client
@@ -234,58 +238,87 @@ async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
-async def cmd_missao(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        set_estado("missao")
-        await update.message.reply_text("Qual é a missão do dia?")
-        return
-    texto = " ".join(context.args)
-    try:
-        _criar_missao(texto)
-        await update.message.reply_text(f"🎯 Missão adicionada:\n\"{texto}\"")
-    except Exception as e:
-        await update.message.reply_text(f"Erro: {e}")
+def _ptb_keyboard(raw: list) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(b["text"], callback_data=b["callback_data"]) for b in row]
+        for row in raw
+    ])
 
 
-async def callback_missao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def callback_selecao_missao(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    acao = query.data[2:]
+    acao = query.data[3:]  # after "ms:"
+
+    if acao.startswith("toggle:"):
+        task_id = acao[7:]
+        ids = toggle(task_id)
+        pendente = get_pendente()
+        kb = _ptb_keyboard(build_keyboard_raw(pendente, ids))
+        await query.edit_message_reply_markup(reply_markup=kb)
+
+    elif acao == "nova":
+        set_estado("missao_manual")
+        await query.answer("Digite a missão no chat", show_alert=False)
+        await query.message.reply_text("Digite a missão que deseja adicionar:")
+
+    elif acao == "confirm":
+        missoes = confirmar()
+        if not missoes:
+            await query.edit_message_text("Nenhuma missão selecionada. Use /missao para adicionar depois.")
+        else:
+            linhas = ["🎯 <b>Missões de hoje definidas:</b>\n"]
+            for m in missoes:
+                linhas.append(f"  → {m['content']}")
+            await query.edit_message_text("\n".join(linhas), parse_mode="HTML")
+
+
+async def callback_checkin_missao(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    acao = query.data[2:]  # after "m:"
 
     if acao.startswith("close:"):
         task_id = acao[6:]
         try:
-            _concluir_por_id(task_id)
-            missoes = _listar_missoes()
-            if not missoes:
-                await query.edit_message_text("✅ Todas as missões concluídas! Ótimo dia, Paulo!")
-            else:
-                linhas = ["🎯 <b>Missões do dia — como foi?</b>\n"]
-                for m in missoes:
-                    linhas.append(f"• {m['content']}")
-                keyboard = []
-                for m in missoes:
-                    nome = m["content"][:28] + ("…" if len(m["content"]) > 28 else "")
-                    keyboard.append([{"text": f"✅ {nome}", "callback_data": f"m:close:{m['id']}"}])
-                if len(missoes) > 1:
-                    keyboard.append([{"text": "✅ Todas feitas", "callback_data": "m:all"}])
-                from telegram import InlineKeyboardMarkup as IKM
-                await query.edit_message_text(
-                    "\n".join(linhas),
-                    parse_mode="HTML",
-                    reply_markup=IKM(keyboard),
-                )
-        except Exception as e:
-            await query.edit_message_text(f"Erro: {e}")
+            missoes_restantes = remover(task_id)
+            # fecha no Todoist se for tarefa real
+            missoes_todas = get_missoes()
+            era_todoist = next((m for m in missoes_todas if m["id"] == task_id and m.get("is_todoist")), None)
+            if era_todoist:
+                _concluir_por_id(task_id)
+        except Exception:
+            pass
+        missoes_restantes = get_missoes()
+        if not missoes_restantes:
+            await query.edit_message_text("✅ Todas as missões concluídas! Ótimo dia, Paulo!")
+        else:
+            linhas = ["🎯 <b>Missões do dia — como foi?</b>\n"]
+            for m in missoes_restantes:
+                linhas.append(f"• {m['content']}")
+            keyboard = []
+            for m in missoes_restantes:
+                nome = m["content"][:28] + ("…" if len(m["content"]) > 28 else "")
+                keyboard.append([{"text": f"✅ {nome}", "callback_data": f"m:close:{m['id']}"}])
+            if len(missoes_restantes) > 1:
+                keyboard.append([{"text": "✅ Todas feitas", "callback_data": "m:all"}])
+            await query.edit_message_text(
+                "\n".join(linhas),
+                parse_mode="HTML",
+                reply_markup=_ptb_keyboard(keyboard),
+            )
 
     elif acao == "all":
-        try:
-            missoes = _listar_missoes()
-            for m in missoes:
-                _concluir_por_id(m["id"])
-            await query.edit_message_text("✅ Todas as missões concluídas! Ótimo dia, Paulo!")
-        except Exception as e:
-            await query.edit_message_text(f"Erro: {e}")
+        missoes = get_missoes()
+        for m in missoes:
+            if m.get("is_todoist"):
+                try:
+                    _concluir_por_id(m["id"])
+                except Exception:
+                    pass
+        from modules.missoes_dia import set_missoes
+        set_missoes([])
+        await query.edit_message_text("✅ Todas as missões concluídas! Ótimo dia, Paulo!")
 
 
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -323,13 +356,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(adicionar_compromisso(data_str, hora_str, titulo))
         return
 
-    if estado == "missao":
+    if estado == "missao_manual":
         set_estado(None)
-        try:
-            _criar_missao(texto)
-            await update.message.reply_text(f"🎯 Missão adicionada:\n\"{texto}\"")
-        except Exception as e:
-            await update.message.reply_text(f"Erro: {e}")
+        adicionar_manual(texto)
+        missoes = get_missoes()
+        linhas = ["🎯 <b>Missões de hoje:</b>\n"]
+        for m in missoes:
+            linhas.append(f"  → {m['content']}")
+        await update.message.reply_html("\n".join(linhas))
         return
 
     if estado == "tarefa":
@@ -428,13 +462,13 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("agenda", cmd_agenda))
     app.add_handler(CommandHandler("tarefa", cmd_tarefa))
     app.add_handler(CommandHandler("feito", cmd_feito))
-    app.add_handler(CommandHandler("missao", cmd_missao))
     app.add_handler(CommandHandler("ideia", cmd_ideia))
     app.add_handler(CommandHandler("registrar", cmd_registrar))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
     app.add_handler(CallbackQueryHandler(callback_tarefa_detect, pattern=r"^t:"))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
-    app.add_handler(CallbackQueryHandler(callback_missao, pattern=r"^m:"))
+    app.add_handler(CallbackQueryHandler(callback_selecao_missao, pattern=r"^ms:"))
+    app.add_handler(CallbackQueryHandler(callback_checkin_missao, pattern=r"^m:"))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))

@@ -10,7 +10,7 @@ from modules.agenda import (
     remover_compromisso as _remover_compromisso,
 )
 from modules.tarefas import lista_tarefas as _lista_tarefas, nova_tarefa as _nova_tarefa, feito as _feito
-from services.todoist import criar_missao as _criar_missao, listar_missoes as _listar_missoes
+from modules.missoes_dia import get_missoes as _get_missoes, adicionar_manual as _add_missao
 from modules.briefing import gerar_briefing as _gerar_briefing
 from modules.registros import registrar as _registrar
 
@@ -121,10 +121,10 @@ def _run_tool(name: str, args: dict) -> str:
         if name == "concluir_tarefa":       return _feito(args["titulo"])
         if name == "get_briefing":          return _gerar_briefing()
         if name == "criar_missao":
-            _criar_missao(args["texto"])
+            _add_missao(args["texto"])
             return f"Missão adicionada: \"{args['texto']}\""
         if name == "listar_missoes":
-            missoes = _listar_missoes()
+            missoes = _get_missoes()
             if not missoes:
                 return "Nenhuma missão definida para hoje."
             return "\n".join(f"• {m['content']}" for m in missoes)

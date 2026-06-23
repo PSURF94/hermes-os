@@ -4,7 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
-from services.todoist import listar_tarefas, listar_projetos_todoist, listar_missoes
+from services.todoist import listar_tarefas, listar_projetos_todoist
 from modules.briefing import PROJETOS_OCULTOS_BRIEFING
 from modules.boletim import boletim_mais_recente
 from modules.escala import escala_hoje
@@ -44,12 +44,11 @@ def gerar_resenha() -> str:
     dia = DIAS_PT[hoje.weekday()]
     data_fmt = f"{dia}, {hoje.day:02d}/{hoje.month:02d}"
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         fut_boletim  = ex.submit(boletim_mais_recente)
         fut_escala   = ex.submit(escala_hoje)
         fut_eventos  = ex.submit(listar_eventos_hoje)
         fut_tarefas  = ex.submit(_get_tarefas_filtradas)
-        fut_missoes  = ex.submit(listar_missoes)
 
         def safe(fut, fallback):
             try:
@@ -61,19 +60,8 @@ def gerar_resenha() -> str:
         escala_txt  = safe(fut_escala,  lambda e: f"  Indisponível: {_e(e)}")
         eventos     = safe(fut_eventos, lambda _: [])
         tarefas     = safe(fut_tarefas, lambda _: [])
-        missoes     = safe(fut_missoes, lambda _: [])
 
     partes = [f"☀️ Bom dia, Paulo! Resenha de {data_fmt}", ""]
-
-    # Missões do dia — destaque no topo
-    partes.append("🎯 MISSÕES DO DIA")
-    if not missoes:
-        partes.append("  Nenhuma missão definida para hoje.")
-        partes.append("  Use /missao para definir o foco do dia.")
-    else:
-        for m in missoes:
-            partes.append(f"  → {_e(m.get('content', ''))}")
-    partes.append("")
 
     # Boletim
     partes += ["🌤️ BOLETIM METEOROLÓGICO", boletim_txt, ""]
