@@ -3,7 +3,6 @@ from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
 from services.todoist import listar_tarefas, listar_projetos_todoist
-from services.supabase_client import get_client
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -63,28 +62,6 @@ def gerar_briefing() -> str:
                 partes.append(f"  • {t.get('content', 'Sem título')}")
             if len(tarefas) > 7:
                 partes.append(f"  ...e mais {len(tarefas) - 7}")
-    except Exception as e:
-        partes.append(f"  Erro: {e}")
-
-    partes.append("")
-
-    # Projetos
-    partes.append("🗂️ PROJETOS")
-    try:
-        db = get_client()
-        result = (
-            db.table("projetos")
-            .select("nome, proxima_acao")
-            .eq("status", "ativo")
-            .order("nome")
-            .execute()
-        )
-        if not result.data:
-            partes.append("  Nenhum projeto ativo.")
-        else:
-            for p in result.data:
-                acao = p.get("proxima_acao") or "—"
-                partes.append(f"  {p['nome']}: {acao}")
     except Exception as e:
         partes.append(f"  Erro: {e}")
 

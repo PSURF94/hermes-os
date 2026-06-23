@@ -9,14 +9,12 @@ from telegram.ext import (
 from services.whisper import transcrever
 
 from config import TELEGRAM_BOT_TOKEN as _TOKEN
+from modules.gemini_chat import chat as gemini_chat, analyze_image as gemini_image
 from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
 from services.todoist import ETIQUETAS_VALIDAS
-from modules.projetos import listar_projetos, detalhar_projeto
-from modules.exportar import exportar_projeto
 from modules.briefing import gerar_briefing
-from modules.insights import get_tags, salvar_pendente, confirmar_tag, listar_insights
 from services.estado import get_estado, set_estado
 from services.supabase_client import get_client
 
@@ -34,39 +32,26 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 /tarefa listar <i>#etiqueta</i> — filtrar por etiqueta
 /feito <i>título parcial</i> — marcar como concluída
 
-<b>PROJETOS</b>
-/projetos — lista projetos ativos com próxima ação
-/projeto <i>nome</i> — detalhes, pendências e decisões
-/exportar <i>nome</i> — contexto formatado para colar no Claude
-
-<b>INSIGHTS E REGISTROS</b>
-/insight — captura insight (bot pede texto e tag)
-/insights — lista insights por tag
+<b>REGISTROS</b>
 /ideia <i>texto</i> — captura rápida para o inbox
 /registrar <i>texto</i> — salva nota processada
 
 <b>BRIEFING</b>
-/briefing — agenda + tarefas + projetos num só lugar
+/briefing — agenda + tarefas num só lugar
 
 <b>TEXTO LIVRE</b>
-Qualquer mensagem → escolha: 💡 Insight · ✅ Tarefa · 📅 Compromisso · 📝 Nota · 🤖 Claude
+Qualquer mensagem → Hermes responde com IA (Gemini)
 Texto com <i>#etiqueta</i> → confirma criação de tarefa automaticamente
 
 <b>VOZ</b>
-Áudio → transcrito via Whisper → vai para a fila do Claude
+Áudio → transcrito via Whisper → Hermes responde com IA
 
 <b>FOTOS</b>
-Só a foto → Claude analisa livremente (mande texto logo depois para contexto)
-Foto com legenda → legenda é a instrução
-Texto antes da foto (até 60s) → texto vira contexto automático
-Foto + texto seguinte → texto adicionado como contexto
-
-<b>🤖 CLAUDE</b>
-Análise complexa, geração de gráficos, mudanças no código, deploy.
-Use /reply para responder quando Claude pedir informação.
+Foto → Hermes analisa com IA
+Foto com legenda → legenda é a instrução de análise
 
 <b>AUTOMÁTICO</b>
-Resenha matinal às 07h: clima · escala CERD · agenda · tarefas · projetos · insights"""
+Resenha matinal às 07h: clima · escala CERD · agenda · tarefas"""
 
 
 TAREFA_CONFIRM_KEYBOARD = InlineKeyboardMarkup([
@@ -78,31 +63,12 @@ TAREFA_CONFIRM_KEYBOARD = InlineKeyboardMarkup([
 
 CLASSIFICAR_KEYBOARD = InlineKeyboardMarkup([
     [
-        InlineKeyboardButton("💡 Insight",     callback_data="c:insight"),
         InlineKeyboardButton("✅ Tarefa",       callback_data="c:tarefa"),
-    ],
-    [
         InlineKeyboardButton("📅 Compromisso", callback_data="c:compromisso"),
         InlineKeyboardButton("📝 Nota",        callback_data="c:nota"),
     ],
-    [
-        InlineKeyboardButton("🤖 Claude",      callback_data="c:claude"),
-    ],
 ])
 
-
-def _tag_keyboard(tags: list[str]) -> InlineKeyboardMarkup:
-    keyboard: list[list] = []
-    row: list = []
-    for tag in tags:
-        row.append(InlineKeyboardButton(tag, callback_data=f"i:{tag}"))
-        if len(row) == 3:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
-    keyboard.append([InlineKeyboardButton("+ Nova tag", callback_data="i:__nova__")])
-    return InlineKeyboardMarkup(keyboard)
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -165,60 +131,6 @@ async def cmd_feito(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(feito(" ".join(args)))
 
-
-async def cmd_projetos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(listar_projetos())
-
-
-async def cmd_projeto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if not args:
-        await update.message.reply_text("Informe o nome do projeto.\nExemplo: /projeto OrganizePJ")
-        return
-    await update.message.reply_text(detalhar_projeto(" ".join(args)))
-
-
-async def cmd_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        set_estado("insight")
-        await update.message.reply_text("Qual o insight?")
-        return
-
-    texto = " ".join(context.args)
-    salvar_pendente(texto)
-    preview = texto[:60] + ("..." if len(texto) > 60 else "")
-    await update.message.reply_text(
-        f"\"{preview}\"\n\nSelecione a tag:",
-        reply_markup=_tag_keyboard(get_tags()),
-    )
-
-
-async def cmd_insight_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text("Uso: /insight_tag [nome da tag]")
-        return
-    await update.message.reply_text(confirmar_tag(" ".join(context.args)))
-
-
-async def cmd_insights(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text(listar_insights(None))
-        return
-    await update.message.reply_text(listar_insights(" ".join(context.args)))
-
-
-async def callback_insight(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    tag = query.data[2:]
-
-    if tag == "__nova__":
-        set_estado("nova_tag")
-        await query.edit_message_text("Qual o nome da nova tag?")
-        return
-
-    await query.edit_message_text(confirmar_tag(tag))
 
 
 async def callback_tarefa_detect(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -291,25 +203,6 @@ async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYP
             f"Compromisso: \"{texto[:60]}\"\n\nData e hora? (DD/MM HH:MM)\nExemplo: 18/06 15:00"
         )
 
-    elif acao == "insight":
-        db.table("registros").update({"tipo": "insight", "status": "pendente"}).eq("id", rid).execute()
-        preview = texto[:60] + ("..." if len(texto) > 60 else "")
-        await query.edit_message_text(
-            f"\"{preview}\"\n\nSelecione a tag:",
-            reply_markup=_tag_keyboard(get_tags()),
-        )
-
-    elif acao == "claude":
-        chat_id = str(query.message.chat_id)
-        db.table("registros").delete().eq("id", rid).execute()
-        db.table("mensagens").insert({
-            "conteudo": texto,
-            "status": "pendente",
-            "chat_id": chat_id,
-        }).execute()
-        preview = texto[:60] + ("..." if len(texto) > 60 else "")
-        await query.edit_message_text(f"Enviado ao Claude:\n\"{preview}\"\n\nAguardando resposta...")
-
 
 async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -337,66 +230,14 @@ async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Erro ao salvar: {e}")
 
 
-async def cmd_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        set_estado("reply")
-        await update.message.reply_text("Qual sua resposta para o Claude?")
-        return
-    texto = " ".join(context.args)
-    try:
-        get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
-        await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
-    except Exception as e:
-        await update.message.reply_text(f"Erro: {e}")
-
-
 async def cmd_briefing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(gerar_briefing())
 
-
-async def cmd_exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if not args:
-        await update.message.reply_text("Informe o projeto.\nExemplo: /exportar OrganizePJ")
-        return
-    await update.message.reply_text(exportar_projeto(" ".join(args)))
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     estado = get_estado()
-
-    # Cenário 3: texto enviado depois de foto sem legenda
-    if estado and estado.startswith("foto_contexto:"):
-        msg_id = int(estado.split(":")[1])
-        set_estado(None)
-        get_client().table("mensagens").update({"conteudo": texto}).eq("id", msg_id).execute()
-        await update.message.reply_text(f"Contexto adicionado à foto:\n\"{texto}\"\nAguardando Claude...")
-        return
-
-    if estado == "reply":
-        set_estado(None)
-        try:
-            get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
-            await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
-        except Exception as e:
-            await update.message.reply_text(f"Erro: {e}")
-        return
-
-    if estado == "insight":
-        set_estado(None)
-        salvar_pendente(texto)
-        preview = texto[:60] + ("..." if len(texto) > 60 else "")
-        await update.message.reply_text(
-            f"\"{preview}\"\n\nSelecione a tag:",
-            reply_markup=_tag_keyboard(get_tags()),
-        )
-        return
-
-    if estado == "nova_tag":
-        set_estado(None)
-        await update.message.reply_text(confirmar_tag(texto))
-        return
 
     if estado == "compromisso_data":
         partes = texto.strip().split()
@@ -452,15 +293,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
-    if estado == "reply":
-        set_estado(None)
-        try:
-            get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
-            await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
-        except Exception as e:
-            await update.message.reply_text(f"Erro: {e}")
-        return
-
     # detecta #etiqueta válida → confirmação de tarefa
     tag_match = re.search(r"#(\w+)", texto)
     if tag_match and tag_match.group(1).lower() in ETIQUETAS_VALIDAS:
@@ -478,106 +310,48 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Erro: {e}")
         return
 
-    # sem estado: mostrar keyboard imediatamente e salvar em paralelo
+    # texto livre → Gemini
+    msg = await update.message.reply_text("...")
     try:
-        preview = texto[:80] + ("..." if len(texto) > 80 else "")
-        await asyncio.gather(
-            update.message.reply_text(
-                f"\"{preview}\"\n\nO que fazer com isso?",
-                reply_markup=CLASSIFICAR_KEYBOARD,
-            ),
-            asyncio.to_thread(registrar, texto, tipo="rascunho", status="classificar"),
-        )
+        resposta = await asyncio.to_thread(gemini_chat, texto)
+        await msg.edit_text(resposta)
     except Exception as e:
-        await update.message.reply_text(f"Erro: {e}")
+        await msg.edit_text(f"Erro ao processar: {e}")
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    photo = update.message.photo[-1]
-    caption = update.message.caption or ""
-    db = get_client()
+    prompt = update.message.caption or "Descreva o que vê nesta imagem."
+    msg = await update.message.reply_text("Analisando imagem...")
+    try:
+        file = await context.bot.get_file(update.message.photo[-1].file_id)
+        imagem_bytes = bytes(await file.download_as_bytearray())
+    except Exception as e:
+        await msg.edit_text(f"Erro ao baixar imagem: {e}")
+        return
 
     try:
-        file = await context.bot.get_file(photo.file_id)
-        imagem_url = file.file_path
-
-        if caption:
-            # Cenário 2: foto com legenda — legenda é o contexto
-            conteudo = caption
-        else:
-            # Cenário 1/3: sem legenda — busca texto enviado nos últimos 60s
-            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
-            r = (
-                db.table("registros")
-                .select("id, conteudo")
-                .eq("status", "classificar")
-                .gte("criado_em", cutoff)
-                .order("criado_em", desc=True)
-                .limit(1)
-                .execute()
-            )
-            if r.data:
-                conteudo = r.data[0]["conteudo"]
-                db.table("registros").delete().eq("id", r.data[0]["id"]).execute()
-            else:
-                conteudo = "📷 Imagem enviada — analise livremente."
-
-        result = db.table("mensagens").insert({
-            "conteudo": conteudo,
-            "chat_id": chat_id,
-            "status": "pendente",
-            "imagem_url": imagem_url,
-        }).execute()
-
-        if caption:
-            await update.message.reply_text(f"Foto recebida — \"{caption}\"\nAguardando Claude...")
-        elif result.data:
-            msg_id = result.data[0]["id"]
-            set_estado(f"foto_contexto:{msg_id}")
-            await update.message.reply_text(
-                "Foto recebida.\nMande um texto agora para adicionar contexto, ou ignore para Claude analisar livremente."
-            )
-        else:
-            await update.message.reply_text("Foto recebida. Aguardando Claude...")
-
+        resposta = await asyncio.to_thread(gemini_image, imagem_bytes, prompt)
+        await msg.edit_text(resposta)
     except Exception as e:
-        await update.message.reply_text(f"Erro ao processar imagem: {e}")
+        await msg.edit_text(f"Erro ao analisar imagem: {e}")
 
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    await update.message.reply_text("Transcrevendo áudio...")
-
+    msg = await update.message.reply_text("Transcrevendo áudio...")
     try:
         file = await context.bot.get_file(update.message.voice.file_id)
         audio_bytes = bytes(await file.download_as_bytearray())
         texto = transcrever(audio_bytes)
     except Exception as e:
-        await update.message.reply_text(f"Erro na transcrição: {e}")
+        await msg.edit_text(f"Erro na transcrição: {e}")
         return
 
-    # Se Claude está aguardando resposta, redireciona para respostas_claude
-    estado = get_estado()
-    if estado == "reply":
-        set_estado(None)
-        get_client().table("respostas_claude").insert({"conteudo": texto}).execute()
-        await update.message.reply_text(f"Resposta enviada ao Claude:\n\"{texto}\"")
-        return
-
+    await msg.edit_text(f"Você disse: \"{texto}\"\n\nProcessando...")
     try:
-        get_client().table("mensagens").insert({
-            "conteudo": texto,
-            "status": "pendente",
-            "chat_id": chat_id,
-        }).execute()
+        resposta = await asyncio.to_thread(gemini_chat, texto)
+        await msg.edit_text(f"Você disse: \"{texto}\"\n\n{resposta}")
     except Exception as e:
-        await update.message.reply_text(f"Erro ao salvar: {e}")
-        return
-
-    await update.message.reply_text(
-        f"Entendido: \"{texto}\"\n\nAguardando Claude..."
-    )
+        await msg.edit_text(f"Você disse: \"{texto}\"\n\nErro ao processar: {e}")
 
 
 def setup_application() -> Application:
@@ -587,18 +361,11 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("agenda", cmd_agenda))
     app.add_handler(CommandHandler("tarefa", cmd_tarefa))
     app.add_handler(CommandHandler("feito", cmd_feito))
-    app.add_handler(CommandHandler("projetos", cmd_projetos))
-    app.add_handler(CommandHandler("projeto", cmd_projeto))
-    app.add_handler(CommandHandler("insight", cmd_insight))
-    app.add_handler(CommandHandler("insights", cmd_insights))
     app.add_handler(CommandHandler("ideia", cmd_ideia))
     app.add_handler(CommandHandler("registrar", cmd_registrar))
-    app.add_handler(CommandHandler("reply", cmd_reply))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
-    app.add_handler(CommandHandler("exportar", cmd_exportar))
     app.add_handler(CallbackQueryHandler(callback_tarefa_detect, pattern=r"^t:"))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
-    app.add_handler(CallbackQueryHandler(callback_insight, pattern=r"^i:"))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.VOICE, handle_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
