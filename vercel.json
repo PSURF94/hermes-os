@@ -7,6 +7,9 @@
     "api/cron_resenha.py": {
       "maxDuration": 30
     },
+    "api/cron_selecao.py": {
+      "maxDuration": 15
+    },
     "api/cron_missoes.py": {
       "maxDuration": 10
     }
@@ -14,6 +17,10 @@
   "crons": [
     {
       "path": "/api/cron_resenha",
+      "schedule": "40 9 * * *"
+    },
+    {
+      "path": "/api/cron_selecao",
       "schedule": "0 10 * * *"
     },
     {
