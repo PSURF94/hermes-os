@@ -3,7 +3,7 @@ import httpx
 
 TODOIST_TOKEN = os.getenv("TODOIST_API_TOKEN")
 BASE = "https://api.todoist.com/api/v1"
-ETIQUETAS_VALIDAS = {"oper", "adm", "renda", "pessoal"}
+ETIQUETAS_VALIDAS = {"oper", "adm", "renda", "pessoal", "missao"}
 
 
 def _headers() -> dict:
@@ -41,6 +41,19 @@ def listar_projetos_todoist() -> list:
     if isinstance(data, dict):
         return data.get("results") or data.get("items") or []
     return data
+
+
+def listar_missoes() -> list:
+    return listar_tarefas("missao")
+
+
+def criar_missao(titulo: str) -> dict:
+    return criar_tarefa(titulo, "missao")
+
+
+def concluir_por_id(task_id: str) -> None:
+    resp = httpx.post(f"{BASE}/tasks/{task_id}/close", headers=_headers())
+    resp.raise_for_status()
 
 
 def concluir_tarefa(busca: str) -> str:

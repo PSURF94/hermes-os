@@ -17,3 +17,5 @@ groq==0.13.1
 
 # Geração de gráficos (loop + enviar_foto)
 matplotlib
+
+# IA conversacional — usa httpx direto (sem SDK pesado)

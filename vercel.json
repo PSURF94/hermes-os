@@ -6,12 +6,19 @@
     },
     "api/cron_resenha.py": {
       "maxDuration": 30
+    },
+    "api/cron_missoes.py": {
+      "maxDuration": 10
     }
   },
   "crons": [
     {
       "path": "/api/cron_resenha",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron_missoes",
+      "schedule": "0 19 * * *"
     }
   ]
 }

@@ -10,6 +10,7 @@ from modules.agenda import (
     remover_compromisso as _remover_compromisso,
 )
 from modules.tarefas import lista_tarefas as _lista_tarefas, nova_tarefa as _nova_tarefa, feito as _feito
+from services.todoist import criar_missao as _criar_missao, listar_missoes as _listar_missoes
 from modules.briefing import gerar_briefing as _gerar_briefing
 from modules.registros import registrar as _registrar
 
@@ -83,6 +84,20 @@ _TOOL_DEFS = [
         "parameters": {"type": "OBJECT", "properties": {}},
     },
     {
+        "name": "criar_missao",
+        "description": "Define uma missão do dia — aparece na resenha matinal e no check-in das 16h.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {"texto": {"type": "STRING", "description": "Descrição da missão"}},
+            "required": ["texto"],
+        },
+    },
+    {
+        "name": "listar_missoes",
+        "description": "Lista as missões do dia pendentes.",
+        "parameters": {"type": "OBJECT", "properties": {}},
+    },
+    {
         "name": "salvar_nota",
         "description": "Salva uma nota ou ideia rápida.",
         "parameters": {
@@ -105,6 +120,14 @@ def _run_tool(name: str, args: dict) -> str:
         if name == "listar_tarefas":        return _lista_tarefas(args.get("etiqueta") or None)
         if name == "concluir_tarefa":       return _feito(args["titulo"])
         if name == "get_briefing":          return _gerar_briefing()
+        if name == "criar_missao":
+            _criar_missao(args["texto"])
+            return f"Missão adicionada: \"{args['texto']}\""
+        if name == "listar_missoes":
+            missoes = _listar_missoes()
+            if not missoes:
+                return "Nenhuma missão definida para hoje."
+            return "\n".join(f"• {m['content']}" for m in missoes)
         if name == "salvar_nota":
             _registrar(args["texto"], tipo="nota", status="ativo")
             return "Nota salva."
