@@ -15,7 +15,7 @@ from modules.briefing import gerar_briefing as _gerar_briefing
 from modules.registros import registrar as _registrar
 
 _KEY = os.getenv("GEMINI_API_KEY", "").lstrip('﻿').strip()
-_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
 # ── Tool schemas ──────────────────────────────────────────────────────────────
 
