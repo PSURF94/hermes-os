@@ -7,13 +7,6 @@ from notify import notificar
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        secret = os.getenv("CRON_SECRET", "")
-        auth = self.headers.get("Authorization", "")
-        if secret and auth != f"Bearer {secret}":
-            self.send_response(401)
-            self.end_headers()
-            return
-
         try:
             resenha = gerar_resenha()
             ok = notificar(resenha, html=True)

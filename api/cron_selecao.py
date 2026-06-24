@@ -23,13 +23,6 @@ def _tarefas_para_selecao() -> list:
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        secret = os.getenv("CRON_SECRET", "")
-        auth = self.headers.get("Authorization", "")
-        if secret and auth != f"Bearer {secret}":
-            self.send_response(401)
-            self.end_headers()
-            return
-
         try:
             tarefas = _tarefas_para_selecao()
             set_pendente(tarefas)

@@ -10,13 +10,6 @@ CHAT_ID = 7137570580
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        secret = os.getenv("CRON_SECRET", "")
-        auth = self.headers.get("Authorization", "")
-        if secret and auth != f"Bearer {secret}":
-            self.send_response(401)
-            self.end_headers()
-            return
-
         try:
             missoes = get_missoes()
 
