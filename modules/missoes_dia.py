@@ -1,4 +1,3 @@
-import uuid
 from services.estado import get_config, set_config
 
 
@@ -46,8 +45,10 @@ def confirmar() -> list:
 
 
 def adicionar_manual(texto: str) -> None:
+    from services.todoist import criar_tarefa
+    tarefa = criar_tarefa(texto)
     missoes = get_missoes()
-    missoes.append({"id": f"m_{uuid.uuid4().hex[:8]}", "content": texto, "is_todoist": False})
+    missoes.append({"id": tarefa["id"], "content": texto, "is_todoist": True})
     set_missoes(missoes)
 
 
