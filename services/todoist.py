@@ -16,13 +16,21 @@ def listar_tarefas(label: str | None = None) -> list:
     params = {}
     if label:
         params["filter"] = f"@{label}"
-    resp = httpx.get(f"{BASE}/tasks", headers=_headers(), params=params)
-    resp.raise_for_status()
-    data = resp.json()
-    # API v1 retorna {"results": [...], "next_cursor": ...} em vez de lista direta
-    if isinstance(data, dict):
-        return data.get("results") or data.get("items") or []
-    return data
+    todas = []
+    while True:
+        resp = httpx.get(f"{BASE}/tasks", headers=_headers(), params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, dict):
+            todas.extend(data.get("results") or data.get("items") or [])
+            cursor = data.get("next_cursor")
+            if not cursor:
+                break
+            params["cursor"] = cursor
+        else:
+            todas.extend(data)
+            break
+    return todas
 
 
 def criar_tarefa(titulo: str, label: str | None = None) -> dict:

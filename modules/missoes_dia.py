@@ -62,8 +62,11 @@ def build_keyboard_raw(pendente: list, selecionadas: list) -> list:
     keyboard = []
     for t in pendente:
         check = "✅" if t["id"] in selecionadas else "○"
-        nome = t["content"][:28] + ("…" if len(t["content"]) > 28 else "")
-        keyboard.append([{"text": f"{check} {nome}", "callback_data": f"ms:toggle:{t['id']}"}])
+        due = t.get("due_str", "")
+        prefix = f"{due} " if due else ""
+        max_chars = 32 - len(prefix)
+        nome = t["content"][:max_chars] + ("…" if len(t["content"]) > max_chars else "")
+        keyboard.append([{"text": f"{check} {prefix}{nome}", "callback_data": f"ms:toggle:{t['id']}"}])
     n = len(selecionadas)
     keyboard.append([
         {"text": "✏️ Nova missão", "callback_data": "ms:nova"},

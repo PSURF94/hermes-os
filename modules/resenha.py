@@ -31,12 +31,7 @@ def _get_tarefas_filtradas() -> list:
     except Exception:
         ids_excluidos = set()
     tarefas = listar_tarefas()
-    # exclui projetos ocultos e missões (missões têm seção própria)
-    return [
-        t for t in tarefas
-        if t.get("project_id") not in ids_excluidos
-        and "missao" not in t.get("labels", [])
-    ]
+    return [t for t in tarefas if t.get("project_id") not in ids_excluidos]
 
 
 def gerar_resenha() -> str:

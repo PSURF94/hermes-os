@@ -1,5 +1,6 @@
 import os
 import httpx
+from datetime import date
 from http.server import BaseHTTPRequestHandler
 
 from modules.missoes_dia import set_pendente, build_keyboard_raw
@@ -8,6 +9,27 @@ from modules.briefing import PROJETOS_OCULTOS_BRIEFING
 from services.estado import set_config
 
 CHAT_ID = 7137570580
+MAX_SELECAO = 15
+
+
+def _due_info(tarefa: dict) -> tuple[int, str, str]:
+    """Retorna (prioridade_sort, due_str_display, data_iso) para ordenação e exibição."""
+    due = tarefa.get("due") or {}
+    data_str = due.get("date", "")
+    if not data_str:
+        return (3, "", "")
+    try:
+        d = date.fromisoformat(data_str[:10])
+        hoje = date.today()
+        if d < hoje:
+            delta = (hoje - d).days
+            return (0, f"[{delta}d atrás]", data_str)
+        elif d == hoje:
+            return (1, "[hoje]", data_str)
+        else:
+            return (2, f"[{d.strftime('%d/%m')}]", data_str)
+    except Exception:
+        return (3, "", "")
 
 
 def _tarefas_para_selecao() -> list:
@@ -16,9 +38,22 @@ def _tarefas_para_selecao() -> list:
         ids_excluidos = {p["id"] for p in projetos if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
     except Exception:
         ids_excluidos = set()
+
     tarefas = listar_tarefas()
     filtradas = [t for t in tarefas if t.get("project_id") not in ids_excluidos]
-    return [{"id": t["id"], "content": t["content"]} for t in filtradas[:8]]
+
+    # ordena: atrasadas → hoje → futuras → sem data
+    filtradas.sort(key=lambda t: _due_info(t)[:2])
+
+    resultado = []
+    for t in filtradas[:MAX_SELECAO]:
+        _, due_str, _ = _due_info(t)
+        resultado.append({
+            "id":      t["id"],
+            "content": t["content"],
+            "due_str": due_str,
+        })
+    return resultado
 
 
 class handler(BaseHTTPRequestHandler):
