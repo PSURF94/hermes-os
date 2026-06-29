@@ -27,7 +27,12 @@ def _get_service():
     )
 
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+        except Exception as e:
+            if "invalid_grant" in str(e):
+                raise ValueError("Google Calendar: autorização expirada. Execute setup_google.py no PC para reautorizar.")
+            raise
         td["token"] = creds.token
         td["expiry"] = creds.expiry.isoformat() if creds.expiry else None
         db.table("tokens").update({

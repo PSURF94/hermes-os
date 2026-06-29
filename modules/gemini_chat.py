@@ -143,7 +143,8 @@ _SYSTEM = (
     "Gerencie agenda, tarefas e registros de forma direta e objetiva. "
     "Use as tools para agir imediatamente — não peça confirmação desnecessária. "
     "Responda sempre em português brasileiro. "
-    "Para código, deploy ou análises técnicas complexas, informe que isso requer o Claude Code no PC."
+    "Para código, deploy ou análises técnicas complexas, informe que isso requer o Claude Code no PC. "
+    "Quando o usuário fizer perguntas sobre como usar o Hermes ou sobre comandos disponíveis, responda com texto explicativo — NÃO crie tarefas, compromissos ou registros sem intenção clara e explícita do usuário."
 )
 
 # ── History ───────────────────────────────────────────────────────────────────
@@ -165,16 +166,22 @@ def _save_history(contents: list) -> None:
 # ── API call ──────────────────────────────────────────────────────────────────
 
 def _call(contents: list, with_tools: bool = True) -> dict:
+    import time
     payload: dict = {
         "system_instruction": {"parts": [{"text": _SYSTEM}]},
         "contents": contents,
     }
     if with_tools:
         payload["tools"] = [{"function_declarations": _TOOL_DEFS}]
-    resp = httpx.post(f"{_URL}?key={_KEY}", json=payload, timeout=25)
-    if not resp.is_success:
-        raise Exception(f"Gemini {resp.status_code}: {resp.text[:500]}")
-    return resp.json()
+    for tentativa in range(3):
+        resp = httpx.post(f"{_URL}?key={_KEY}", json=payload, timeout=25)
+        if resp.status_code == 503 and tentativa < 2:
+            time.sleep(3 ** tentativa)
+            continue
+        if not resp.is_success:
+            raise Exception(f"Gemini {resp.status_code}: {resp.text[:500]}")
+        return resp.json()
+    raise Exception("Gemini indisponível após 3 tentativas. Tente novamente em instantes.")
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

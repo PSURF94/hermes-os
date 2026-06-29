@@ -134,8 +134,9 @@ async def cmd_tarefa(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_feito(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
+        lista = lista_tarefas()
         set_estado("feito")
-        await update.message.reply_text("Qual tarefa concluir? (título parcial)")
+        await update.message.reply_text(f"{lista}\n\n─────────────\nQual tarefa concluir? (título parcial)")
         return
     await update.message.reply_text(feito(" ".join(args)))
 
