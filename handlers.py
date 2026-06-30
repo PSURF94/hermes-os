@@ -10,7 +10,6 @@ from services.whisper import transcrever
 
 from config import TELEGRAM_BOT_TOKEN as _TOKEN
 from modules.gemini_chat import chat as gemini_chat, analyze_image as gemini_image
-from modules.registros import registrar
 from modules.agenda import agenda_hoje, agenda_semana, adicionar_compromisso, remover_compromisso
 from modules.tarefas import lista_tarefas, nova_tarefa, feito
 from services.todoist import ETIQUETAS_VALIDAS, concluir_por_id as _concluir_por_id
@@ -35,14 +34,6 @@ AJUDA_TEXT = """<b>Hermes OS</b> — Chefe de Gabinete Pessoal
 /tarefa listar — todas as tarefas pendentes
 /tarefa listar <i>#etiqueta</i> — filtrar por etiqueta
 /feito <i>título parcial</i> — marcar como concluída
-
-<b>MISSÕES DO DIA</b>
-/missao <i>texto</i> — define uma missão do dia (salva no Todoist com #missao)
-Às 16h você recebe um check-in com botões para marcar como feito.
-
-<b>REGISTROS</b>
-/ideia <i>texto</i> — captura rápida para o inbox
-/registrar <i>texto</i> — salva nota processada
 
 <b>BRIEFING</b>
 /briefing — agenda + tarefas num só lugar
@@ -213,32 +204,6 @@ async def callback_classificar(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
-async def cmd_ideia(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        set_estado("ideia")
-        await update.message.reply_text("Qual a ideia?")
-        return
-    texto = " ".join(context.args)
-    try:
-        registrar(texto, tipo="ideia", status="inbox")
-        await update.message.reply_text(f"Ideia salva:\n\"{texto}\"")
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao salvar: {e}")
-
-
-async def cmd_registrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        set_estado("registrar")
-        await update.message.reply_text("O que registrar?")
-        return
-    texto = " ".join(context.args)
-    try:
-        registrar(texto, tipo="nota", status="ativo")
-        await update.message.reply_text(f"Registrado:\n\"{texto}\"")
-    except Exception as e:
-        await update.message.reply_text(f"Erro ao salvar: {e}")
-
-
 def _ptb_keyboard(raw: list) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(b["text"], callback_data=b["callback_data"]) for b in row]
@@ -377,24 +342,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(feito(texto))
         return
 
-    if estado == "ideia":
-        set_estado(None)
-        try:
-            registrar(texto, tipo="ideia", status="inbox")
-            await update.message.reply_text(f"Ideia salva:\n\"{texto}\"")
-        except Exception as e:
-            await update.message.reply_text(f"Erro: {e}")
-        return
-
-    if estado == "registrar":
-        set_estado(None)
-        try:
-            registrar(texto, tipo="nota", status="ativo")
-            await update.message.reply_text(f"Registrado:\n\"{texto}\"")
-        except Exception as e:
-            await update.message.reply_text(f"Erro: {e}")
-        return
-
     # detecta #etiqueta válida → confirmação de tarefa
     tag_match = re.search(r"#(\w+)", texto)
     if tag_match and tag_match.group(1).lower() in ETIQUETAS_VALIDAS:
@@ -463,8 +410,6 @@ def setup_application() -> Application:
     app.add_handler(CommandHandler("agenda", cmd_agenda))
     app.add_handler(CommandHandler("tarefa", cmd_tarefa))
     app.add_handler(CommandHandler("feito", cmd_feito))
-    app.add_handler(CommandHandler("ideia", cmd_ideia))
-    app.add_handler(CommandHandler("registrar", cmd_registrar))
     app.add_handler(CommandHandler("briefing", cmd_briefing))
     app.add_handler(CallbackQueryHandler(callback_tarefa_detect, pattern=r"^t:"))
     app.add_handler(CallbackQueryHandler(callback_classificar, pattern=r"^c:"))
