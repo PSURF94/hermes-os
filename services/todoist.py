@@ -54,7 +54,10 @@ def listar_projetos_todoist() -> list:
 def get_inbox_project_id() -> str | None:
     try:
         projetos = listar_projetos_todoist()
-        inbox = next((p for p in projetos if p.get("is_inbox_project")), None)
+        inbox = next(
+            (p for p in projetos if p.get("name", "").lower() in ("inbox", "caixa de entrada")),
+            None,
+        )
         return inbox["id"] if inbox else None
     except Exception:
         return None
