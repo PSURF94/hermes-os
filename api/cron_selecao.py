@@ -9,7 +9,7 @@ from modules.briefing import PROJETOS_OCULTOS_BRIEFING
 from services.estado import set_config
 
 CHAT_ID = 7137570580
-MAX_SELECAO = 15
+MAX_SELECAO = 20
 
 
 def _due_info(tarefa: dict) -> tuple[int, str, str]:
@@ -42,11 +42,20 @@ def _tarefas_para_selecao() -> list:
     tarefas = listar_tarefas()
     filtradas = [t for t in tarefas if t.get("project_id") not in ids_excluidos]
 
-    # ordena: atrasadas → hoje → futuras → sem data
-    filtradas.sort(key=lambda t: _due_info(t)[:2])
+    # separa com e sem data de vencimento
+    com_data = [t for t in filtradas if t.get("due")]
+    sem_data = [t for t in filtradas if not t.get("due")]
+
+    # com data: atrasadas → hoje → futuras
+    com_data.sort(key=lambda t: _due_info(t)[2])
+
+    # sem data: mais recentes primeiro (created_at DESC)
+    sem_data.sort(key=lambda t: t.get("created_at", ""), reverse=True)
+
+    ordenadas = com_data + sem_data
 
     resultado = []
-    for t in filtradas[:MAX_SELECAO]:
+    for t in ordenadas[:MAX_SELECAO]:
         _, due_str, _ = _due_info(t)
         resultado.append({
             "id":      t["id"],
