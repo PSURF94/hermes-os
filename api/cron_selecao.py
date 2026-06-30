@@ -47,8 +47,8 @@ def _tarefas_para_selecao() -> list:
     # com data: atrasadas → hoje → futuras
     com_data.sort(key=lambda t: _due_info(t)[2])
 
-    # sem data: mais recentes primeiro (created_at DESC)
-    sem_data.sort(key=lambda t: t.get("created_at", ""), reverse=True)
+    # sem data: mais recentes primeiro (added_at DESC)
+    sem_data.sort(key=lambda t: t.get("added_at", ""), reverse=True)
 
     ordenadas = com_data + sem_data
 
