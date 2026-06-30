@@ -2,12 +2,10 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
-from services.todoist import listar_tarefas, listar_projetos_todoist
+from services.todoist import listar_tarefas, get_inbox_project_id
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
-
-PROJETOS_OCULTOS_BRIEFING = {"Getting Started", "Trabalho focado"}
 
 
 def _fmt_hora(evento: dict) -> str:
@@ -15,14 +13,6 @@ def _fmt_hora(evento: dict) -> str:
     if "dateTime" in start:
         return datetime.fromisoformat(start["dateTime"]).strftime("%H:%M")
     return "Dia todo"
-
-
-def _ids_excluidos() -> set:
-    try:
-        projetos = listar_projetos_todoist()
-        return {p["id"] for p in projetos if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
-    except Exception:
-        return set()
 
 
 def gerar_briefing() -> str:
@@ -49,11 +39,9 @@ def gerar_briefing() -> str:
     # Tarefas
     partes.append("✅ TAREFAS")
     try:
-        excluidos = _ids_excluidos()
-        tarefas = [
-            t for t in listar_tarefas()
-            if t.get("project_id") not in excluidos
-        ]
+        inbox_id = get_inbox_project_id()
+        todas = listar_tarefas()
+        tarefas = [t for t in todas if t.get("project_id") == inbox_id] if inbox_id else todas
         if not tarefas:
             partes.append("  Nenhuma tarefa pendente.")
         else:

@@ -51,6 +51,15 @@ def listar_projetos_todoist() -> list:
     return data
 
 
+def get_inbox_project_id() -> str | None:
+    try:
+        projetos = listar_projetos_todoist()
+        inbox = next((p for p in projetos if p.get("is_inbox_project")), None)
+        return inbox["id"] if inbox else None
+    except Exception:
+        return None
+
+
 def concluir_por_id(task_id: str) -> None:
     resp = httpx.post(f"{BASE}/tasks/{task_id}/close", headers=_headers())
     resp.raise_for_status()

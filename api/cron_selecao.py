@@ -4,8 +4,7 @@ from datetime import date
 from http.server import BaseHTTPRequestHandler
 
 from modules.missoes_dia import set_pendente, build_keyboard_raw
-from services.todoist import listar_tarefas, listar_projetos_todoist
-from modules.briefing import PROJETOS_OCULTOS_BRIEFING
+from services.todoist import listar_tarefas, get_inbox_project_id
 from services.estado import set_config
 
 CHAT_ID = 7137570580
@@ -13,7 +12,6 @@ MAX_SELECAO = 20
 
 
 def _due_info(tarefa: dict) -> tuple[int, str, str]:
-    """Retorna (prioridade_sort, due_str_display, data_iso) para ordenação e exibição."""
     due = tarefa.get("due") or {}
     data_str = due.get("date", "")
     if not data_str:
@@ -33,14 +31,14 @@ def _due_info(tarefa: dict) -> tuple[int, str, str]:
 
 
 def _tarefas_para_selecao() -> list:
-    try:
-        projetos = listar_projetos_todoist()
-        ids_excluidos = {p["id"] for p in projetos if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
-    except Exception:
-        ids_excluidos = set()
-
+    inbox_id = get_inbox_project_id()
     tarefas = listar_tarefas()
-    filtradas = [t for t in tarefas if t.get("project_id") not in ids_excluidos]
+
+    # só tarefas do inbox (onde o Hermes cria)
+    if inbox_id:
+        filtradas = [t for t in tarefas if t.get("project_id") == inbox_id]
+    else:
+        filtradas = tarefas
 
     # separa com e sem data de vencimento
     com_data = [t for t in filtradas if t.get("due")]
