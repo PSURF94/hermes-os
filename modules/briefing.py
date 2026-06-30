@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
 from services.todoist import listar_tarefas, get_inbox_project_id
+from modules.missoes_dia import get_missoes
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
@@ -21,6 +22,17 @@ def gerar_briefing() -> str:
     data_fmt = f"{dia}, {hoje.day:02d}/{hoje.month:02d}"
 
     partes = [f"📋 BRIEFING — {data_fmt}", ""]
+
+    # Missões do dia
+    try:
+        missoes = get_missoes()
+        if missoes:
+            partes.append("🎯 MISSÕES DE HOJE")
+            for m in missoes:
+                partes.append(f"  → {m['content']}")
+            partes.append("")
+    except Exception:
+        pass
 
     # Agenda
     partes.append("📅 AGENDA")
