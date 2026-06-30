@@ -4,8 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.google_calendar import listar_eventos_hoje
-from services.todoist import listar_tarefas, listar_projetos_todoist
-from modules.briefing import PROJETOS_OCULTOS_BRIEFING
+from services.todoist import listar_tarefas, get_inbox_project_id
 from modules.boletim import boletim_mais_recente
 from modules.escala import escala_hoje
 
@@ -25,13 +24,9 @@ def _e(s) -> str:
 
 
 def _get_tarefas_filtradas() -> list:
-    try:
-        projetos = listar_projetos_todoist()
-        ids_excluidos = {p["id"] for p in projetos if p.get("name") in PROJETOS_OCULTOS_BRIEFING}
-    except Exception:
-        ids_excluidos = set()
+    inbox_id = get_inbox_project_id()
     tarefas = listar_tarefas()
-    return [t for t in tarefas if t.get("project_id") not in ids_excluidos]
+    return [t for t in tarefas if t.get("project_id") == inbox_id] if inbox_id else tarefas
 
 
 def gerar_resenha() -> str:
